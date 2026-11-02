@@ -1,0 +1,2106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registro de Asistencia a Ceremonia de Titulación</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <style>
+    :root {
+      --color-fondo: #f5f7fa;
+      --color-encabezado: #ffffff;
+      --color-primario: #26167A;
+      --color-secundario: #3498db;
+      --color-reset: #e74c3c;
+      --color-destacado: #3498db;
+      --color-atrasado-alerta: #E8EB2A;
+      --color-rol-registro: #3498db;
+      --color-rol-invitados: #ff9800;
+      --color-rol-jefe: #9b59b6;
+      --color-rol-coordinador: #e74c3c;
+      --color-rol-secretario: #2ecc71;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--color-fondo);
+      color: #333;
+    }
+    .header-principal {
+      position: sticky; top: 0; left: 0; width: 100%;
+      background: var(--color-encabezado);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      z-index: 1000; max-height: 25vh; overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    .header-alerta {
+      background-color: var(--color-atrasado-alerta) !important;
+      animation: pulse-alerta 2s infinite;
+    }
+    @keyframes pulse-alerta {
+      0% { background-color: var(--color-atrasado-alerta); }
+      50% { background-color: #f8f89c; }
+      100% { background-color: var(--color-atrasado-alerta); }
+    }
+    .contenedor { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+    .titulo-contenedor { display: flex; flex-direction: column; gap: 10px; padding: 8px 0; }
+    .encabezado-superior { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+    .encabezado-titulo { flex: 1; min-width: 200px; }
+    .encabezado-titulo h2 { font-size: 1.4rem; margin: 0; line-height: 1.2; color: var(--color-primario); }
+    .contador-contenedor-compacto {
+      display: flex; align-items: center; gap: 12px;
+      background: #f0f0f0; padding: 6px 12px; border-radius: 18px; flex-shrink: 0;
+    }
+    .contador-total-compacto {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      width: 40px; height: 40px; border-radius: 50%;
+      background-color: var(--color-primario); color: white; font-weight: bold;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .contador-total-valor-compacto { font-size: 1.1rem; line-height: 1; }
+    .contador-total-texto-compacto { font-size: 0.55rem; text-transform: uppercase; margin-top: 1px; }
+    .contador-compacto { display: flex; gap: 10px; font-size: 0.8rem; }
+    .contador-item-compacto { display: flex; flex-direction: column; align-items: center; }
+    .contador-valor-compacto { font-weight: bold; font-size: 0.95rem; }
+    .controles-header {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px; margin-top: 5px; padding: 8px 0;
+    }
+    .grupo-control-compacto { display: flex; flex-direction: column; gap: 4px; }
+    .grupo-control-compacto label { font-weight: 600; font-size: 0.8rem; margin-bottom: 0; }
+    .grupo-control-compacto input { padding: 8px; font-size: 0.9rem; }
+    @media screen and (max-width: 768px) {
+      .header-principal { max-height: 30vh; overflow-y: auto; }
+      .encabezado-superior { flex-direction: column; align-items: stretch; gap: 8px; }
+      .encabezado-titulo h2 { font-size: 1.2rem; text-align: center; }
+      .contador-contenedor-compacto { justify-content: center; padding: 5px 10px; }
+      .contador-compacto { gap: 8px; }
+      .controles-header { grid-template-columns: 1fr; gap: 8px; }
+      .grupo-control-compacto { margin-bottom: 5px; }
+      .grupo-control-compacto.busqueda-movil { display: flex !important; }
+    }
+    #modal-rol {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.7); z-index: 3000;
+      display: flex; justify-content: center; align-items: center;
+    }
+    .modal-rol-contenido {
+      background-color: white; padding: 30px; border-radius: 10px;
+      width: 90%; max-width: 500px; box-shadow: 0 5px 25px rgba(0,0,0,0.3); text-align: center;
+    }
+    .modal-rol-contenido h2 { margin-bottom: 20px; color: var(--color-primario); }
+    .opciones-rol { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; }
+    .opcion-rol {
+      padding: 15px; border: 2px solid #ddd; border-radius: 8px;
+      cursor: pointer; transition: all 0.3s ease; text-align: center; font-weight: 600;
+    }
+    .opcion-rol:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+    .opcion-rol.registro { border-color: var(--color-rol-registro); color: var(--color-rol-registro); }
+    .opcion-rol.registro:hover, .opcion-rol.registro.seleccionado { background-color: var(--color-rol-registro); color: white; }
+    .opcion-rol.invitados { border-color: var(--color-rol-invitados); color: var(--color-rol-invitados); }
+    .opcion-rol.invitados:hover, .opcion-rol.invitados.seleccionado { background-color: var(--color-rol-invitados); color: white; }
+    .opcion-rol.jefe { border-color: var(--color-rol-jefe); color: var(--color-rol-jefe); }
+    .opcion-rol.jefe:hover, .opcion-rol.jefe.seleccionado { background-color: var(--color-rol-jefe); color: white; }
+    .opcion-rol.coordinador { border-color: var(--color-rol-coordinador); color: var(--color-rol-coordinador); }
+    .opcion-rol.coordinador:hover, .opcion-rol.coordinador.seleccionado { background-color: var(--color-rol-coordinador); color: white; }
+    .opcion-rol.secretario { border-color: var(--color-rol-secretario); color: var(--color-rol-secretario); }
+    .opcion-rol.secretario:hover, .opcion-rol.secretario.seleccionado { background-color: var(--color-rol-secretario); color: white; }
+
+    .indicador-rol {
+      position: fixed; top: 10px; right: 10px; background-color: #f0f0f0;
+      padding: 8px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; z-index: 1001;
+    }
+    .indicador-rol.registro { background-color: var(--color-rol-registro); color: white; }
+    .indicador-rol.invitados { background-color: var(--color-rol-invitados); color: white; }
+    .indicador-rol.jefe { background-color: var(--color-rol-jefe); color: white; }
+    .indicador-rol.coordinador { background-color: var(--color-rol-coordinador); color: white; }
+    .indicador-rol.secretario { background-color: var(--color-rol-secretario); color: white; }
+    #modal-contrasena {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.8); z-index: 4000; display: none;
+      justify-content: center; align-items: center;
+    }
+    .modal-contrasena-contenido {
+      background-color: white; padding: 30px; border-radius: 10px;
+      width: 90%; max-width: 400px; box-shadow: 0 5px 25px rgba(0,0,0,0.3); text-align: center;
+    }
+    .modal-contrasena-contenido h3 { margin-bottom: 20px; color: var(--color-primario); }
+    .modal-contrasena-contenido input {
+      width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;
+    }
+    .modal-contrasena-contenido button {
+      background-color: var(--color-secundario); color: white; border: none;
+      padding: 12px 20px; border-radius: 4px; cursor: pointer; font-size: 1rem; margin: 0 5px;
+    }
+    .modal-contrasena-contenido button.cancelar { background-color: #95a5a6; }
+    #modal-cambiar-usuario {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.7); z-index: 5000; display: none;
+      justify-content: center; align-items: center;
+    }
+    .modal-cambiar-usuario-contenido {
+      background-color: white; padding: 30px; border-radius: 10px;
+      width: 90%; max-width: 400px; box-shadow: 0 5px 25px rgba(0,0,0,0.3); text-align: center;
+    }
+    .modal-cambiar-usuario-contenido h3 { margin-bottom: 20px; color: var(--color-primario); }
+    .modal-cambiar-usuario-contenido input {
+      width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;
+    }
+    .modal-cambiar-usuario-contenido button {
+      background-color: var(--color-secundario); color: white; border: none;
+      padding: 12px 20px; border-radius: 4px; cursor: pointer; font-size: 1rem; margin: 0 5px;
+    }
+    .modal-cambiar-usuario-contenido button.cancelar { background-color: #95a5a6; }
+    #cambiar-usuario-btn {
+      position: fixed; top: 50px; right: 10px; background-color: #f0f0f0;
+      padding: 8px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: 600;
+      z-index: 1001; cursor: pointer; display: none; border: none; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    #cambiar-usuario-btn:hover { background-color: #e0e0e0; }
+    .chat-container {
+      position: fixed; bottom: 20px; right: 20px; width: 350px; height: 450px;
+      background-color: white; border-radius: 10px; box-shadow: 0 5px 25px rgba(0,0,0,0.2);
+      display: flex; flex-direction: column; z-index: 1000; transition: all 0.3s ease;
+    }
+    .chat-container.minimized { height: 50px; }
+    .chat-header {
+      background-color: var(--color-primario); color: white; padding: 12px 15px;
+      border-top-left-radius: 10px; border-top-right-radius: 10px;
+      display: flex; justify-content: space-between; align-items: center;
+      cursor: pointer; position: relative;
+    }
+    .chat-header.notification { background-color: #e74c3c; animation: pulse 1.5s infinite; }
+    @keyframes pulse {
+      0% { background-color: #e74c3c; }
+      50% { background-color: #ff6b6b; }
+      100% { background-color: #e74c3c; }
+    }
+    .chat-notification-badge {
+      position: absolute; top: -8px; right: -8px; background-color: #e74c3c; color: white;
+      border-radius: 50%; width: 20px; height: 20px; font-size: 0.7rem;
+      display: flex; align-items: center; justify-content: center; font-weight: bold;
+    }
+    .chat-title { font-weight: 600; font-size: 1rem; }
+    .chat-controls { display: flex; gap: 10px; }
+    .chat-btn {
+      background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer;
+      padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 50%;
+    }
+    .chat-btn:hover { background-color: rgba(255, 255, 255, 0.2); }
+    .chat-messages {
+      flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .message { max-width: 80%; padding: 8px 12px; border-radius: 15px; margin-bottom: 5px; word-wrap: break-word; }
+    .message.own { align-self: flex-end; background-color: var(--color-destacado); color: white; }
+    .message.other { align-self: flex-start; background-color: #f0f0f0; color: #333; }
+    .message-sender { font-size: 0.7rem; margin-bottom: 3px; font-weight: 600; }
+    .message-time { font-size: 0.6rem; text-align: right; margin-top: 3px; opacity: 0.8; }
+    .chat-input-container { padding: 10px 15px; border-top: 1px solid #eee; display: flex; gap: 10px; }
+    .chat-input { flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 20px; outline: none; }
+    .chat-send-btn {
+      background-color: var(--color-destacado); color: white; border: none; border-radius: 4px;
+      width: 40px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      padding: 0; font-size: 0.9rem; margin-left: 5px;
+    }
+    .chat-send-btn:disabled { background-color: #ccc; cursor: not-allowed; }
+
+
+    .contenedor-tabla {
+      position: relative; overflow: auto; background: white; border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-top: 10px; max-height: calc(100vh - 220px);
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 600px; }
+    thead th {
+      position: sticky; top: 0; background: var(--color-primario); color: white;
+      padding: 12px; text-align: center; font-size: 0.9rem;
+    }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 0.85rem; }
+    th:nth-child(1), td:nth-child(1) { width: 5%; }
+    th:nth-child(2), td:nth-child(2) { width: 12%; }
+    th:nth-child(3), td:nth-child(3) { width: 25%; text-align: left; }
+    th:nth-child(4), td:nth-child(4) { width: 20%; }
+    th:nth-child(5), td:nth-child(5) { width: 8%; }
+    th:nth-child(6), td:nth-child(6) { width: 8%; }
+    th:nth-child(7), td:nth-child(7) { width: 10%; }
+    th:nth-child(8), td:nth-child(8) { width: 12%; min-width: 120px; }
+    .puntual { background-color: #e8f5e9; }
+    .atrasado { background-color: #fff8e1; }
+    .deshabilitado { opacity: 0.6; pointer-events: none; }
+    .chk-deshabilitado { background-color: #e0e0e0; border-color: #b0b0b0; }
+    select.obs-select {
+      padding: 8px; border: 1px solid #ddd; border-radius: 4px;
+      width: 100%; background-color: white; cursor: pointer; font-size: 0.9rem;
+    }
+    select.obs-select option { padding: 8px; font-size: 0.9rem; }
+    .botones-accion { display: flex; gap: 15px; margin-top: 20px; }
+    button {
+      background-color: var(--color-secundario); color: white; border: none;
+      padding: 12px 20px; border-radius: 4px; cursor: pointer; font-size: 16px; flex: 1;
+    }
+    button.reset { background-color: var(--color-reset); }
+    @media screen and (max-width: 768px) {
+      .contenedor-tabla { max-height: calc(100vh - 120px); }
+      th, td { padding: 8px 5px; font-size: 0.75rem; }
+      th:nth-child(4), td:nth-child(4),
+      th:nth-child(5), td:nth-child(5),
+      th:nth-child(8), td:nth-child(8) { display: none; }
+      th:nth-child(1), td:nth-child(1) { width: 10%; }
+      th:nth-child(2), td:nth-child(2) { width: 25%; }
+      th:nth-child(3), td:nth-child(3) { width: 35%; }
+      th:nth-child(6), td:nth-child(6) { width: 15%; }
+      th:nth-child(7), td:nth-child(7) { width: 15%; }
+      .botones-accion { flex-direction: column; gap: 10px; }
+      .boton-flotante { bottom: 70px; left: 15px; width: 50px; height: 50px; font-size: 20px; }
+      .btn-protagonismo { padding: 6px 12px; font-size: 0.8rem; }
+      .indicador-rol { top: 5px; right: 5px; font-size: 0.8rem; padding: 5px 10px; }
+      .chat-container { width: 300px; height: 400px; right: 10px; bottom: 10px; }
+      #cambiar-usuario-btn { top: 45px; right: 5px; font-size: 0.8rem; padding: 5px 10px; }
+      .rol-invitados th:nth-child(9), .rol-invitados td:nth-child(9) { display: table-cell !important; width: 15% !important; }
+      .rol-invitados th:nth-child(1), .rol-invitados td:nth-child(1) { width: 8% !important; }
+      .rol-invitados th:nth-child(2), .rol-invitados td:nth-child(2) { width: 20% !important; }
+      .rol-invitados th:nth-child(3), .rol-invitados td:nth-child(3) { width: 25% !important; }
+      .input-invitados { width: 85% !important; padding: 4px 2px !important; font-size: 0.8rem !important; text-align: center; }
+      .rol-secretario th:nth-child(10), .rol-secretario td:nth-child(10) { display: table-cell !important; width: 18% !important; }
+      .rol-secretario th:nth-child(4), .rol-secretario td:nth-child(4),
+      .rol-secretario th:nth-child(5), .rol-secretario td:nth-child(5) { display: none !important; }
+      .select-orden-atrasado { font-size: 0.75rem; padding: 4px; }
+      .fila-adicional td { height: 30px; }
+    }
+    .conexion-estado {
+      position: fixed; top: 10px; left: 180px; padding: 4px 8px; border-radius: 10px;
+      font-size: 0.65rem; background-color: #e0e0e0; z-index: 1002; font-weight: bold;
+    }
+    .conectado { background-color: #4caf50; color: white; }
+    .desconectado { background-color: #f44336; color: white; }
+    .boton-flotante {
+      position: fixed; bottom: 80px; left: 20px; width: 60px; height: 60px;
+      border-radius: 50%; background-color: var(--color-secundario); color: white;
+      border: none; font-size: 24px; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      z-index: 1000; display: flex; justify-content: center; align-items: center;
+    }
+    .boton-flotante:hover { background-color: #2980b9; transform: scale(1.05); }
+    .modal {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;
+    }
+    .modal-contenido {
+      background-color: white; padding: 20px; border-radius: 8px; width: 90%;
+      max-width: 700px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); max-height: 80vh; overflow: auto;
+    }
+    .modal-contenido h3 {
+      margin-bottom: 15px; color: white; text-align: center;
+      background-color: var(--color-destacado); padding: 12px; border-radius: 6px;
+      margin: -20px -20px 20px -20px;
+    }
+    .modal-contenido p { margin-bottom: 10px; }
+    .modal-contenido input {
+      width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px;
+    }
+    .modal-botones { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
+    .modal-botones button { flex: none; padding: 8px 16px; }
+    #btn-cancelar-restablecer { background-color: #95a5a6; }
+    #btn-confirmar-restablecer { background-color: var(--color-secundario); }
+
+    .tabla-protagonismo { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
+    .tabla-protagonismo th { background-color: var(--color-destacado); color: white; padding: 10px; text-align: center; }
+    .tabla-protagonismo td { padding: 8px; border: 1px solid #ddd; word-wrap: break-word; }
+    .tabla-protagonismo tr:nth-child(even) { background-color: #f9f9f9; }
+    .tabla-protagonismo th:nth-child(1), .tabla-protagonismo td:nth-child(1) { width: 8%; }
+    .tabla-protagonismo th:nth-child(2), .tabla-protagonismo td:nth-child(2) { width: 60%; text-align: left; }
+    .tabla-protagonismo th:nth-child(3), .tabla-protagonismo td:nth-child(3) { width: 20%; text-align: center; }
+    .tabla-protagonismo th:nth-child(4), .tabla-protagonismo td:nth-child(4) { width: 15%; text-align: center; }
+    .ausente { color: #e74c3c; font-weight: bold; }
+    .puntual-tabla { color: #27ae60; font-weight: bold; }
+    .atrasado-tabla { color: #f39c12; font-weight: bold; }
+    .fila-protagonismo { font-weight: bold; }
+    .obs-header-editable { cursor: pointer; }
+    .obs-header-editable:hover { text-decoration: underline; }
+    .columna-oculta { display: none !important; }
+    .indicador-roles {
+      position: fixed; top: 10px; left: 10px; background-color: rgba(255, 255, 255, 0.95);
+      border-radius: 6px; padding: 6px 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      z-index: 1001; display: none; font-size: 0.7rem; max-width: 160px; border: 1px solid #e0e0e0;
+    }
+    .indicador-roles.visible { display: block; }
+    .indicador-roles h4 {
+      margin-bottom: 6px; color: var(--color-primario); border-bottom: 1px solid #eee;
+      padding-bottom: 4px; font-size: 0.75rem; font-weight: bold;
+    }
+    .estado-rol { display: flex; align-items: center; margin-bottom: 5px; line-height: 1.2; }
+    .estado-rol:last-child { margin-bottom: 0; }
+    .circulo-estado { width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; flex-shrink: 0; }
+    .circulo-verde { background-color: #2ecc71; }
+    .circulo-rojo { background-color: #e74c3c; }
+    .circulo-amarillo { background-color: #f39c12; }
+    .elemento-oculto { display: none !important; }
+    .nombre-tachado {
+      text-decoration: line-through; text-decoration-thickness: 2px;
+      text-decoration-color: #e74c3c; color: #888; cursor: pointer;
+    }
+    .nombre-estudiante { cursor: pointer; transition: all 0.2s ease; }
+    .nombre-estudiante:hover { background-color: #f0f8ff; }
+    .contador-contenedor { display: flex; align-items: center; gap: 15px; background: #f0f0f0; padding: 8px 15px; border-radius: 20px; }
+    .contador-total {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      width: 50px; height: 50px; border-radius: 50%; background-color: var(--color-primario);
+      color: white; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .contador-total-valor { font-size: 1.3rem; line-height: 1; }
+    .contador-total-texto { font-size: 0.6rem; text-transform: uppercase; margin-top: 2px; }
+    .file-input-disabled { opacity: 0.6; pointer-events: none; }
+    .file-info-text {
+      padding: 8px 12px; background-color: #f5f5f5; border-radius: 4px;
+      border: 1px solid #ddd; margin-top: 5px; font-size: 0.9rem;
+    }
+    input[readonly] { background-color: #f5f5f5; cursor: not-allowed; }
+    .boton-atrasados {
+      position: fixed; bottom: 150px; left: 20px; width: 60px; height: 60px;
+      border-radius: 50%; background-color: #f39c12; color: white; border: none;
+      font-size: 24px; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      z-index: 1000; display: flex; justify-content: center; align-items: center;
+    }
+    .boton-atrasados:hover { background-color: #e67e22; transform: scale(1.05); }
+    #modal-atrasados {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.7); z-index: 2000; justify-content: center; align-items: center;
+    }
+    .modal-atrasados-contenido {
+      background-color: white; padding: 20px; border-radius: 8px; width: 90%;
+      max-width: 800px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); max-height: 80vh; overflow: auto;
+    }
+    .modal-atrasados-contenido h3 {
+      margin-bottom: 15px; color: white; text-align: center; background-color: #f39c12;
+      padding: 12px; border-radius: 6px; margin: -20px -20px 20px -20px;
+    }
+    .tabla-atrasados { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
+    .tabla-atrasados th { background-color: #f39c12; color: white; padding: 10px; text-align: left; }
+    .tabla-atrasados td { padding: 8px; border: 1px solid #ddd; }
+    .tabla-atrasados tr:nth-child(even) { background-color: #f9f9f9; }
+    .tabla-atrasados th:nth-child(1), .tabla-atrasados td:nth-child(1) { width: 4%; }
+    .tabla-atrasados th:nth-child(2), .tabla-atrasados td:nth-child(2) { width: 40%; }
+    .tabla-atrasados th:nth-child(3), .tabla-atrasados td:nth-child(3) { width: 36%; }
+    .tabla-atrasados th:nth-child(4), .tabla-atrasados td:nth-child(4) { width: 10%; }
+    .tabla-atrasados th:nth-child(5), .tabla-atrasados td:nth-child(5) { width: 10%; }
+    @media screen and (max-width: 768px) {
+      .tabla-atrasados th:nth-child(1), .tabla-atrasados td:nth-child(1) { width: 15%; }
+      .tabla-atrasados th:nth-child(2), .tabla-atrasados td:nth-child(2) { width: 25%; }
+      .tabla-atrasados th:nth-child(3), .tabla-atrasados td:nth-child(3) { width: 20%; }
+      .tabla-atrasados th:nth-child(4), .tabla-atrasados td:nth-child(4) { width: 20%; }
+      .tabla-atrasados th:nth-child(5), .tabla-atrasados td:nth-child(5) { width: 20%; }
+    }
+    .cerrar-modal {
+      position: absolute; top: 10px; right: 10px; background: none; border: none;
+      font-size: 20px; cursor: pointer; color: white;
+    }
+    @media screen and (max-width: 768px) {
+      .contador-contenedor { padding: 6px 12px; }
+      .contador-total { width: 40px; height: 40px; }
+      .contador-total-valor { font-size: 1.1rem; }
+      .contador-total-texto { font-size: 0.5rem; }
+      .boton-atrasados { bottom: 130px; left: 15px; width: 50px; height: 50px; font-size: 20px; }
+    }
+    .input-invitados {
+      width: 60px; text-align: center; padding: 5px; border: 1px solid #ddd; border-radius: 4px;
+    }
+    .select-orden-atrasado, .select-orden-atrasado-modal {
+      width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.85rem;
+    }
+    .fila-adicional { background-color: transparent !important; border: none !important; }
+    .fila-adicional td {
+      border: none !important; background-color: transparent !important; padding: 0 !important; height: 40px;
+    }
+    .fila-adicional:hover { background-color: transparent !important; }
+    .boton-protagonismo {
+      position: fixed; bottom: 220px; left: 20px; width: 60px; height: 60px;
+      border-radius: 50%; background-color: #9b59b6; color: white; border: none;
+      font-size: 24px; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      z-index: 1000; justify-content: center; align-items: center; display: none;
+    }
+    .boton-protagonismo:hover { background-color: #8e44ad; transform: scale(1.05); }
+    @media screen and (max-width: 768px) {
+      .boton-protagonismo { bottom: 200px; left: 15px; width: 50px; height: 50px; font-size: 20px; }
+      .rol-secretario .boton-atrasados { bottom: 130px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Modal de selección de rol -->
+<div id="modal-rol">
+  <div class="modal-rol-contenido">
+    <h2>¿Cuál es tu rol?</h2>
+    <p>Selecciona tu rol para personalizar tu experiencia:</p>
+    <div class="opciones-rol">
+      <div class="opcion-rol registro" data-rol="registro">Registro Titulados</div>
+      <div class="opcion-rol invitados" data-rol="invitados">Registro Invitados</div>
+      <div class="opcion-rol jefe" data-rol="jefe">Jefe de Escuela</div>
+      <div class="opcion-rol coordinador" data-rol="coordinador">Coordinador Auditorio</div>
+      <div class="opcion-rol secretario" data-rol="secretario">Secretario</div>
+    </div>
+    <button id="btn-confirmar-rol" disabled>Confirmar</button>
+  </div>
+</div>
+
+<!-- Modal de contraseña para Secretario -->
+<div id="modal-contrasena">
+  <div class="modal-contrasena-contenido">
+    <h3>Acceso Secretario</h3>
+    <p>Ingrese la contraseña para acceder como Secretario:</p>
+    <input type="password" id="input-contrasena" placeholder="Contraseña">
+    <div>
+      <button id="btn-cancelar-contrasena" class="cancelar">Cancelar</button>
+      <button id="btn-verificar-contrasena">Verificar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para cambiar usuario -->
+<div id="modal-cambiar-usuario">
+  <div class="modal-cambiar-usuario-contenido">
+    <h3>Cambiar de Usuario</h3>
+    <p>Ingrese la contraseña para cambiar de usuario:</p>
+    <input type="password" id="input-contrasena-cambio" placeholder="Contraseña">
+    <div>
+      <button id="btn-cancelar-cambio" class="cancelar">Cancelar</button>
+      <button id="btn-verificar-cambio">Verificar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Botón para cambiar usuario -->
+<button id="cambiar-usuario-btn" class="cambiar-usuario-btn" title="Cambiar de usuario">
+  🔄 Cambiar Usuario
+</button>
+
+<!-- Indicador de rol -->
+<div id="indicador-roles" class="indicador-roles">
+  <h4>Estado de Roles</h4>
+  <div class="estado-rol" id="estado-registro">
+    <div class="circulo-estado circulo-rojo"></div>
+    <span>Registro Titulados</span>
+  </div>
+  <div class="estado-rol" id="estado-invitados">
+    <div class="circulo-estado circulo-rojo"></div>
+    <span>Registro Invitados</span>
+  </div>
+  <div class="estado-rol" id="estado-coordinador">
+    <div class="circulo-estado circulo-rojo"></div>
+    <span>Coordinador Auditorio</span>
+  </div>
+  <div class="estado-rol" id="estado-jefe">
+    <div class="circulo-estado circulo-rojo"></div>
+    <span>Jefe de Escuela</span>
+  </div>
+</div>
+<div id="indicador-rol" class="indicador-rol" style="display: none;"></div>
+
+<!-- Contenedor del chat -->
+<div id="chat-container" class="chat-container minimized">
+  <div class="chat-header" id="chat-header">
+    <div class="chat-title">Chat de Ceremonia</div>
+    <div class="chat-controls">
+      <button class="chat-btn" id="chat-clear" title="Limpiar chat">🗑️</button>
+      <button class="chat-btn" id="chat-minimize">—</button>
+      <button class="chat-btn" id="chat-close">×</button>
+    </div>
+  </div>
+  <div class="chat-messages" id="chat-messages"></div>
+  <div class="chat-input-container">
+    <input type="text" class="chat-input" id="chat-input" placeholder="Escribe un mensaje..." disabled>
+    <button class="chat-send-btn" id="chat-send-btn" disabled>
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+        <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.599-7.599Z"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<!-- Botón flotante para detalle de protagonismo -->
+<button id="btn-detalle-protagonismo-flotante" class="boton-protagonismo" title="Detalle de Protagonismo">
+  👑
+</button>
+
+<!-- Botón flotante para atrasados -->
+<button id="btn-ver-atrasados" class="boton-atrasados" title="Ver estudiantes atrasados">
+  ⏰
+</button>
+
+<!-- Modal para atrasados -->
+<div id="modal-atrasados" class="modal">
+  <div class="modal-atrasados-contenido">
+    <h3>Estudiantes Atrasados 
+      <button class="cerrar-modal" id="cerrar-modal-atrasados">×</button>
+    </h3>
+    <div id="contenido-atrasados">
+      <table class="tabla-atrasados">
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>Nombre</th>
+            <th>Carrera</th>
+            <th>Hora de Llegada</th>
+            <th>Orden Atrasado</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-atrasados-body">
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER PRINCIPAL -->
+<header class="header-principal" id="header-principal">
+  <div class="contenedor">
+    <div class="titulo-contenedor">
+      <div class="encabezado-superior">
+        <div class="encabezado-titulo">
+          <h2>Registro Ceremonias de Titulación</h2>
+        </div>
+        <div class="contador-contenedor-compacto">
+          <div class="contador-total-compacto">
+            <div class="contador-total-valor-compacto" id="contador-total">0</div>
+            <div class="contador-total-texto-compacto">Total</div>
+          </div>
+          <div class="contador-compacto">
+            <div class="contador-item-compacto">
+              <div class="contador-valor-compacto" id="contador-presentes">0</div>
+              <div>Presentes</div>
+            </div>
+            <div class="contador-item-compacto">
+              <div class="contador-valor-compacto" id="contador-puntual">0</div>
+              <div>Puntual</div>
+            </div>
+            <div class="contador-item-compacto">
+              <div class="contador-valor-compacto" id="contador-atrasado">0</div>
+              <div>Atrasado</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="controles-header">
+        <div class="grupo-control-compacto" id="grupo-excel" style="display: none;">
+          <label>Subir archivo Excel:</label>
+          <input type="file" id="input-excel" accept=".xlsx, .xls">
+          <div class="nombre-archivo" id="nombre-archivo"></div>
+        </div>
+        <div class="grupo-control-compacto">
+          <label>Hora de inicio:</label>
+          <input type="time" id="hora-evento" value="18:00">
+        </div>
+        <div class="grupo-control-compacto busqueda-movil">
+          <label>Buscar (RUT o Nombre):</label>
+          <input type="text" id="buscador" placeholder="Escribe aquí...">
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="contenedor">
+  <div class="contenedor-tabla">
+    <table id="tabla-asistencia">
+      <thead>
+        <tr id="tabla-header">
+        </tr>
+      </thead>
+      <tbody id="tabla-body"></tbody>
+    </table>
+  </div>
+
+  <div class="botones-accion">
+    <button onclick="exportarExcel()" class="boton-accion-oculto">Exportar a Excel</button>
+    <button class="reset boton-accion-oculto" onclick="resetearAsistencia()">Restablecer Asistencia</button>
+  </div>
+</main>
+
+<div id="estado-conexion" class="conexion-estado">Conectando...</div>
+
+<!-- Botón flotante para restablecer línea específica -->
+<button id="btn-restablecer-linea" class="boton-flotante boton-accion-oculto" title="Restablecer línea específica">
+  ↺
+</button>
+
+<!-- Modal para ingresar el RUT -->
+<div id="modal-restablecer" class="modal">
+  <div class="modal-contenido">
+    <h3>Restablecer línea de estudiante</h3>
+    <p>Ingrese el RUT del estudiante que desea restablecer:</p>
+    <input type="text" id="input-rut-restablecer" placeholder="Ej: 12345678-9">
+    <div class="modal-botones">
+      <button id="btn-cancelar-restablecer">Cancelar</button>
+      <button id="btn-confirmar-restablecer">Restablecer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para detalle de protagonismo -->
+<div id="modal-protagonismo" class="modal">
+  <div class="modal-contenido">
+    <h3>Detalle de Protagonismo</h3>
+    <div id="contenido-protagonismo">
+      <table class="tabla-protagonismo">
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>Nombre</th>
+            <th>Protagonismo</th>
+            <th>Asistencia</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-protagonismo-body">
+        </tbody>
+      </table>
+    </div>
+    <div class="modal-botones">
+      <button id="btn-cerrar-protagonismo">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para editar OBS manualmente -->
+<div id="modal-editar-obs" class="modal">
+  <div class="modal-contenido">
+    <h3>Editar Protagonismo</h3>
+    <p>Ingrese el RUT del estudiante:</p>
+    <input type="text" id="input-rut-editar-obs" placeholder="Ej: 12345678-9">
+    <p>Seleccione el tipo de protagonismo:</p>
+    <select id="select-tipo-obs">
+      <option value="">-- Sin protagonismo --</option>
+      <option value="Mérito">Mérito</option>
+      <option value="Discurso">Discurso</option>
+      <option value="Discurso y Mérito">Discurso y Mérito</option>
+    </select>
+    <div class="modal-botones">
+      <button id="btn-cancelar-editar-obs">Cancelar</button>
+      <button id="btn-confirmar-editar-obs">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Configuración de Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyCeD_E6IuZAraz8sEc4rKNAOh8kM1EfP9w",
+  authDomain: "web-registro-ceremonias.firebaseapp.com",
+  databaseURL: "https://web-registro-ceremonias-default-rtdb.firebaseio.com",
+  projectId: "web-registro-ceremonias",
+  storageBucket: "web-registro-ceremonias.firebasestorage.app",
+  messagingSenderId: "884729117884",
+  appId: "1:884729117884:web:3742985816fa338b9ea4b9"
+};
+
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+
+let datos = [];
+let datosFiltrados = [];
+const tablaBody = document.getElementById("tabla-body");
+const timers = {};
+let archivoCargado = null;
+let contadorAtrasadosAnterior = 0;
+const headerPrincipal = document.getElementById('header-principal');
+let rolUsuario = null;
+let nombreUsuario = "";
+
+// 🔧 NUEVO: control del listener de Firebase para evitar duplicados
+let listenerAsistencia = null;
+
+// Elementos del modal de rol
+const modalRol = document.getElementById('modal-rol');
+const opcionesRol = document.querySelectorAll('.opcion-rol');
+const btnConfirmarRol = document.getElementById('btn-confirmar-rol');
+const indicadorRol = document.getElementById('indicador-rol');
+
+// Elementos del modal de contraseña
+const modalContrasena = document.getElementById('modal-contrasena');
+const inputContrasena = document.getElementById('input-contrasena');
+const btnCancelarContrasena = document.getElementById('btn-cancelar-contrasena');
+const btnVerificarContrasena = document.getElementById('btn-verificar-contrasena');
+
+// Elementos del modal de cambio de usuario
+const modalCambiarUsuario = document.getElementById('modal-cambiar-usuario');
+const inputContrasenaCambio = document.getElementById('input-contrasena-cambio');
+const btnCancelarCambio = document.getElementById('btn-cancelar-cambio');
+const btnVerificarCambio = document.getElementById('btn-verificar-cambio');
+const cambiarUsuarioBtn = document.getElementById('cambiar-usuario-btn');
+
+// Elementos del chat
+const chatContainer = document.getElementById('chat-container');
+const chatHeader = document.getElementById('chat-header');
+const chatMessages = document.getElementById('chat-messages');
+const chatInput = document.getElementById('chat-input');
+const chatSendBtn = document.getElementById('chat-send-btn');
+const chatMinimizeBtn = document.getElementById('chat-minimize');
+const chatCloseBtn = document.getElementById('chat-close');
+const chatClearBtn = document.getElementById('chat-clear');
+
+// Variables para control de notificaciones de chat
+let ultimoMensajeTimestamp = 0;
+let notificacionActiva = false;
+let contadorMensajesNoVistos = 0;
+
+// Elementos del contador
+let contadorPresentes = document.getElementById('contador-presentes');
+let contadorPuntual = document.getElementById('contador-puntual');
+let contadorAtrasado = document.getElementById('contador-atrasado');
+const contadorTotalElement = document.getElementById('contador-total');
+const nombreArchivoElement = document.getElementById('nombre-archivo');
+const inputExcel = document.getElementById('input-excel');
+const horaEventoInput = document.getElementById('hora-evento');
+const buscadorInput = document.getElementById('buscador');
+const estadoConexion = document.getElementById('estado-conexion');
+
+// Elementos del modal de restablecimiento
+const btnRestablecerLinea = document.getElementById('btn-restablecer-linea');
+const modalRestablecer = document.getElementById('modal-restablecer');
+const inputRutRestablecer = document.getElementById('input-rut-restablecer');
+const btnCancelarRestablecer = document.getElementById('btn-cancelar-restablecer');
+const btnConfirmarRestablecer = document.getElementById('btn-confirmar-restablecer');
+
+// Elementos del modal de protagonismo
+const modalProtagonismo = document.getElementById('modal-protagonismo');
+const tablaProtagonismoBody = document.getElementById('tabla-protagonismo-body');
+const btnCerrarProtagonismo = document.getElementById('btn-cerrar-protagonismo');
+
+// Elementos del modal de edición OBS
+const obsHeader = document.getElementById('obs-header');
+const modalEditarObs = document.getElementById('modal-editar-obs');
+const inputRutEditarObs = document.getElementById('input-rut-editar-obs');
+const selectTipoObs = document.getElementById('select-tipo-obs');
+const btnCancelarEditarObs = document.getElementById('btn-cancelar-editar-obs');
+const btnConfirmarEditarObs = document.getElementById('btn-confirmar-editar-obs');
+
+// Elemento para mostrar info de archivo
+const fileInfoDisplay = document.getElementById('file-info-display');
+const grupoExcel = document.getElementById('grupo-excel');
+
+// Elementos para atrasados
+const btnVerAtrasados = document.getElementById('btn-ver-atrasados');
+const modalAtrasados = document.getElementById('modal-atrasados');
+const tablaAtrasadosBody = document.getElementById('tabla-atrasados-body');
+const btnCerrarAtrasados = document.getElementById('cerrar-modal-atrasados');
+
+// Tachados
+let tachadosUsuario = {};
+
+// Indicadores de estado de roles
+const indicadorRoles = document.getElementById('indicador-roles');
+const estadoRegistro = document.getElementById('estado-registro');
+const estadoInvitados = document.getElementById('estado-invitados');
+const estadoCoordinador = document.getElementById('estado-coordinador');
+const estadoJefe = document.getElementById('estado-jefe');
+let usuarioId = null;
+
+// CONFIGURACIÓN DE COLUMNAS
+const configColumnas = [
+  {
+    id: 'numero', titulo: 'N°',
+    roles: ['registro', 'invitados', 'jefe', 'coordinador', 'secretario'],
+    ancho: '5%', render: (fila) => fila.NUMERO
+  },
+  {
+    id: 'rut', titulo: 'RUT',
+    roles: ['registro', 'invitados', 'jefe', 'coordinador', 'secretario'],
+    ancho: '12%', render: (fila) => fila.AlumnoRUT
+  },
+  {
+    id: 'nombre', titulo: 'Nombre',
+    roles: ['registro', 'invitados', 'jefe', 'coordinador', 'secretario'],
+    ancho: '25%',
+    render: (fila) => {
+      const span = document.createElement('span');
+      span.className = 'nombre-estudiante';
+      span.setAttribute('data-rut', fila.AlumnoRUT);
+      span.textContent = fila.Nombre;
+      if (estaTachado(fila.AlumnoRUT)) span.classList.add('nombre-tachado');
+      return span;
+    }
+  },
+  {
+    id: 'carrera', titulo: 'Carrera',
+    roles: ['registro', 'invitados', 'jefe', 'coordinador', 'secretario'],
+    ancho: '20%', render: (fila) => fila.Carrera
+  },
+  {
+    id: 'ceremonia', titulo: 'Ceremonia',
+    roles: ['registro', 'secretario'],
+    ancho: '8%', render: (fila) => fila.Ceremonia
+  },
+  {
+    id: 'asistencia', titulo: 'Asistencia',
+    roles: ['registro', 'secretario'],
+    ancho: '8%',
+    render: (fila) => {
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.className = 'chk-asistencia';
+      input.setAttribute('data-rut', fila.AlumnoRUT);
+      input.checked = !!fila.LLEGADA;
+      input.disabled = fila.DESHABILITADO;
+      if (fila.DESHABILITADO) {
+        input.style.backgroundColor = '#e0e0e0';
+        input.style.borderColor = '#b0b0b0';
+      }
+      return input;
+    }
+  },
+  {
+    id: 'hora', titulo: 'Hora Llegada',
+    roles: ['registro', 'secretario'],
+    ancho: '10%', render: (fila) => fila.HORA || ''
+  },
+  {
+    id: 'obs', titulo: 'OBS',
+    roles: ['registro', 'secretario'],
+    ancho: '12%', render: (fila) => fila.OBS || ''
+  },
+  {
+    id: 'invitados', titulo: 'N° Invitados',
+    roles: ['invitados', 'secretario'],
+    ancho: '10%',
+    render: (fila) => {
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = '0';
+      input.className = 'input-invitados';
+      input.value = fila.NumeroInvitados || '0';
+      input.setAttribute('data-rut', fila.AlumnoRUT);
+      input.addEventListener('change', (e) => {
+        const numInvitados = parseInt(e.target.value) || 0;
+        actualizarNumeroInvitados(fila.AlumnoRUT, numInvitados);
+      });
+      return input;
+    }
+  },
+  {
+    id: 'ordenAtrasado', titulo: 'Orden Atrasado',
+    roles: ['secretario'],
+    ancho: '12%',
+    render: (fila) => {
+      if (fila.LLEGADA !== "Atrasado") return "";
+      const select = document.createElement('select');
+      select.className = 'select-orden-atrasado';
+      select.setAttribute('data-rut', fila.AlumnoRUT);
+      select.innerHTML = `
+        <option value="">-- Seleccionar --</option>
+        <option value="En Orden" ${fila.OrdenAtrasado === "En Orden" ? "selected" : ""}>En Orden</option>
+        <option value="Al Final" ${fila.OrdenAtrasado === "Al Final" ? "selected" : ""}>Al Final</option>
+      `;
+      select.addEventListener('change', (e) => {
+        actualizarOrdenAtrasado(fila.AlumnoRUT, e.target.value);
+      });
+      return select;
+    }
+  }
+];
+
+function actualizarOrdenAtrasado(rut, valor) {
+  const alumno = datos.find(d => d.AlumnoRUT.toString().toLowerCase() === rut.toLowerCase());
+  if (!alumno) return;
+  alumno.OrdenAtrasado = valor;
+  const alumnoFiltrado = datosFiltrados.find(d => d.AlumnoRUT.toString().toLowerCase() === rut.toLowerCase());
+  if (alumnoFiltrado) alumnoFiltrado.OrdenAtrasado = valor;
+  guardarEnFirebase();
+}
+
+function generarIdUnico() {
+  return 'user_' + Math.random().toString(36).substr(2, 9) + '_' + new Date().getTime();
+}
+
+function registrarUsuarioEnFirebase() {
+  const userData = {
+    rol: rolUsuario,
+    nombre: nombreUsuario,
+    timestamp: firebase.database.ServerValue.TIMESTAMP,
+    ultimaActividad: firebase.database.ServerValue.TIMESTAMP
+  };
+  database.ref('usuarios/' + usuarioId).set(userData);
+  setInterval(() => {
+    database.ref('usuarios/' + usuarioId + '/ultimaActividad').set(firebase.database.ServerValue.TIMESTAMP);
+  }, 30000);
+}
+
+function monitorearEstadosRoles() {
+  if (rolUsuario !== 'secretario') return;
+  const ref = database.ref('usuarios');
+  ref.on('value', (snapshot) => {
+    const usuarios = snapshot.val();
+    const ahora = new Date().getTime();
+    const estados = {
+      registro: 'desconectado',
+      invitados: 'desconectado',
+      coordinador: 'desconectado',
+      jefe: 'desconectado'
+    };
+    if (usuarios) {
+      Object.keys(usuarios).forEach(userId => {
+        const user = usuarios[userId];
+        if (userId === usuarioId) return;
+        const ultimaActividad = user.ultimaActividad || 0;
+        const diferenciaTiempo = ahora - ultimaActividad;
+        let estado = 'desconectado';
+        if (diferenciaTiempo < 35000) {
+          estado = 'conectado';
+        } else if (diferenciaTiempo < 120000) {
+          estado = 'ausente';
+        }
+        if (user.rol && estados.hasOwnProperty(user.rol)) {
+          if (estados[user.rol] === 'desconectado' ||
+              (estados[user.rol] === 'ausente' && estado === 'conectado')) {
+            estados[user.rol] = estado;
+          }
+        }
+      });
+    }
+    actualizarIndicadoresEstado(estados);
+  });
+}
+
+function actualizarIndicadoresEstado(estados) {
+  const circuloRegistro = estadoRegistro.querySelector('.circulo-estado');
+  circuloRegistro.className = 'circulo-estado ' +
+    (estados.registro === 'conectado' ? 'circulo-verde' :
+     estados.registro === 'ausente' ? 'circulo-amarillo' : 'circulo-rojo');
+  const circuloInvitados = estadoInvitados.querySelector('.circulo-estado');
+  circuloInvitados.className = 'circulo-estado ' +
+    (estados.invitados === 'conectado' ? 'circulo-verde' :
+     estados.invitados === 'ausente' ? 'circulo-amarillo' : 'circulo-rojo');
+  const circuloCoordinador = estadoCoordinador.querySelector('.circulo-estado');
+  circuloCoordinador.className = 'circulo-estado ' +
+    (estados.coordinador === 'conectado' ? 'circulo-verde' :
+     estados.coordinador === 'ausente' ? 'circulo-amarillo' : 'circulo-rojo');
+  const circuloJefe = estadoJefe.querySelector('.circulo-estado');
+  circuloJefe.className = 'circulo-estado ' +
+    (estados.jefe === 'conectado' ? 'circulo-verde' :
+     estados.jefe === 'ausente' ? 'circulo-amarillo' : 'circulo-rojo');
+}
+
+function cargarTachadosUsuario() {
+  const tachadosGuardados = localStorage.getItem(`tachados_${nombreUsuario}`);
+  if (tachadosGuardados) {
+    tachadosUsuario = JSON.parse(tachadosGuardados);
+  } else {
+    tachadosUsuario = {};
+  }
+}
+
+function guardarTachadosUsuario() {
+  localStorage.setItem(`tachados_${nombreUsuario}`, JSON.stringify(tachadosUsuario));
+}
+
+function toggleTachadoEstudiante(rut) {
+  if (!tachadosUsuario[rut]) {
+    tachadosUsuario[rut] = true;
+  } else {
+    delete tachadosUsuario[rut];
+  }
+  guardarTachadosUsuario();
+  mostrarTabla();
+}
+
+function estaTachado(rut) {
+  return tachadosUsuario[rut] === true;
+}
+
+function actualizarNumeroInvitados(rut, numero) {
+  const alumno = datos.find(d => d.AlumnoRUT.toString().toLowerCase() === rut.toLowerCase());
+  if (!alumno) return;
+  alumno.NumeroInvitados = numero;
+  const alumnoFiltrado = datosFiltrados.find(d => d.AlumnoRUT.toString().toLowerCase() === rut.toLowerCase());
+  if (alumnoFiltrado) alumnoFiltrado.NumeroInvitados = numero;
+  guardarEnFirebase();
+}
+
+function actualizarBotonesFlotantes() {
+  const btnProtagonismoFlotante = document.getElementById('btn-detalle-protagonismo-flotante');
+  const btnAtrasados = document.getElementById('btn-ver-atrasados');
+  if (rolUsuario === 'secretario') {
+    btnProtagonismoFlotante.style.display = 'flex';
+    btnAtrasados.style.bottom = '150px';
+  } else {
+    btnProtagonismoFlotante.style.display = 'none';
+    btnAtrasados.style.bottom = '80px';
+  }
+}
+
+function aplicarRestriccionesRol() {
+  const btnExportar = document.querySelector('button[onclick="exportarExcel()"]');
+  const btnReset = document.querySelector('button[onclick="resetearAsistencia()"]');
+  const btnFlotante = document.getElementById('btn-restablecer-linea');
+  const contador = document.querySelector('.contador');
+  const horaEventoInput = document.getElementById('hora-evento');
+
+  document.querySelectorAll('.boton-accion-oculto').forEach(el => el.classList.remove('elemento-oculto'));
+  if (contador) contador.classList.remove('elemento-oculto');
+
+  horaEventoInput.readOnly = false;
+  horaEventoInput.style.backgroundColor = '';
+  horaEventoInput.style.cursor = '';
+
+  if (rolUsuario === 'secretario') {
+    grupoExcel.style.display = 'flex';
+  } else {
+    grupoExcel.style.display = 'none';
+  }
+
+  switch(rolUsuario) {
+    case 'registro':
+      btnReset.classList.add('elemento-oculto');
+      horaEventoInput.readOnly = true;
+      horaEventoInput.style.backgroundColor = '#f5f5f5';
+      horaEventoInput.style.cursor = 'not-allowed';
+      break;
+    case 'invitados':
+      btnExportar.classList.add('elemento-oculto');
+      btnReset.classList.add('elemento-oculto');
+      btnFlotante.classList.add('elemento-oculto');
+      if (contador) contador.classList.add('elemento-oculto');
+      horaEventoInput.readOnly = true;
+      horaEventoInput.style.backgroundColor = '#f5f5f5';
+      horaEventoInput.style.cursor = 'not-allowed';
+      break;
+    case 'jefe':
+      btnExportar.classList.add('elemento-oculto');
+      btnReset.classList.add('elemento-oculto');
+      btnFlotante.classList.add('elemento-oculto');
+      horaEventoInput.readOnly = true;
+      horaEventoInput.style.backgroundColor = '#f5f5f5';
+      horaEventoInput.style.cursor = 'not-allowed';
+      break;
+    case 'coordinador':
+      btnExportar.classList.add('elemento-oculto');
+      btnReset.classList.add('elemento-oculto');
+      btnFlotante.classList.add('elemento-oculto');
+      horaEventoInput.readOnly = true;
+      horaEventoInput.style.backgroundColor = '#f5f5f5';
+      horaEventoInput.style.cursor = 'not-allowed';
+      break;
+    case 'secretario':
+      horaEventoInput.readOnly = false;
+      horaEventoInput.style.backgroundColor = '';
+      horaEventoInput.style.cursor = '';
+      break;
+  }
+
+  actualizarBotonesFlotantes();
+  generarThead();
+  mostrarTabla();
+}
+
+firebase.database().ref('.info/connected').on('value', function(snapshot) {
+  if (snapshot.val() === true) {
+    estadoConexion.textContent = "Conectado";
+    estadoConexion.className = "conexion-estado conectado";
+  } else {
+    estadoConexion.textContent = "Desconectado";
+    estadoConexion.className = "conexion-estado desconectado";
+  }
+});
+
+function limpiarChat() {
+  if (rolUsuario !== 'secretario') {
+    alert('Solo el Secretario puede limpiar el chat.');
+    return;
+  }
+  const contraseña = prompt("Ingrese la contraseña para limpiar el chat:");
+  if (contraseña !== "1510") {
+    alert("Contraseña incorrecta. La operación ha sido cancelada.");
+    return;
+  }
+  if (!confirm("¿Está seguro que desea limpiar todo el historial del chat? Esta acción no se puede deshacer.")) {
+    return;
+  }
+  database.ref('chat').remove()
+    .then(() => {
+      chatMessages.innerHTML = '';
+      ultimoMensajeTimestamp = 0;
+      localStorage.setItem('ultimoMensajeTimestamp', '0');
+      quitarNotificacionChat();
+      alert('Chat limpiado correctamente.');
+    })
+    .catch(error => {
+      console.error("Error al limpiar el chat:", error);
+      alert('Error al limpiar el chat.');
+    });
+}
+
+function seleccionarRol(rol) {
+  if (rol === 'secretario') {
+    modalRol.style.display = 'none';
+    modalContrasena.style.display = 'flex';
+    inputContrasena.focus();
+    return;
+  }
+  rolUsuario = rol;
+  switch(rol) {
+    case 'registro':
+      nombreUsuario = "Registro Titulados";
+      indicadorRol.textContent = 'Registro Titulados';
+      indicadorRol.className = 'indicador-rol registro';
+      break;
+    case 'invitados':
+      nombreUsuario = "Registro Invitados";
+      indicadorRol.textContent = 'Registro Invitados';
+      indicadorRol.className = 'indicador-rol invitados';
+      break;
+    case 'jefe':
+      nombreUsuario = "Jefe de Escuela";
+      indicadorRol.textContent = 'Jefe de Escuela';
+      indicadorRol.className = 'indicador-rol jefe';
+      break;
+    case 'coordinador':
+      nombreUsuario = "Coordinador Auditorio";
+      indicadorRol.textContent = 'Coordinador Auditorio';
+      indicadorRol.className = 'indicador-rol coordinador';
+      break;
+    case 'secretario':
+      nombreUsuario = "Secretario";
+      indicadorRol.textContent = 'Secretario';
+      indicadorRol.className = 'indicador-rol secretario';
+      break;
+  }
+  indicadorRol.style.display = 'block';
+  modalRol.style.display = 'none';
+  chatInput.disabled = false;
+  chatSendBtn.disabled = false;
+  localStorage.setItem('rolUsuario', rol);
+  localStorage.setItem('nombreUsuario', nombreUsuario);
+  cargarTachadosUsuario();
+  aplicarRestriccionesRol();
+  document.body.classList.add('rol-' + rolUsuario);
+  cargarDatosDesdeFirebase();
+  cargarMensajesChat();
+  cambiarUsuarioBtn.style.display = 'block';
+  usuarioId = generarIdUnico();
+  registrarUsuarioEnFirebase();
+  if (rolUsuario === 'secretario') {
+    indicadorRoles.classList.add('visible');
+    monitorearEstadosRoles();
+  }
+}
+
+function cambiarUsuario() {
+  modalCambiarUsuario.style.display = 'flex';
+  inputContrasenaCambio.focus();
+}
+
+function verificarContrasenaCambio() {
+  document.body.classList.remove('rol-' + rolUsuario);
+  const contrasena = inputContrasenaCambio.value.trim();
+  if (contrasena === "1510") {
+    if (usuarioId) {
+      database.ref('usuarios/' + usuarioId).remove();
+    }
+    localStorage.removeItem('rolUsuario');
+    localStorage.removeItem('nombreUsuario');
+    localStorage.removeItem(`tachados_${nombreUsuario}`);
+    localStorage.removeItem('ultimoMensajeTimestamp');
+    indicadorRol.style.display = 'none';
+    cambiarUsuarioBtn.style.display = 'none';
+    indicadorRoles.classList.remove('visible');
+    chatInput.disabled = true;
+    chatSendBtn.disabled = true;
+    modalCambiarUsuario.style.display = 'none';
+    modalContrasena.style.display = 'none';
+    modalRol.style.display = 'flex';
+    rolUsuario = null;
+    nombreUsuario = "";
+    usuarioId = null;
+    inputContrasenaCambio.value = '';
+  } else {
+    alert("Contraseña incorrecta. Intente nuevamente.");
+    inputContrasenaCambio.value = '';
+    inputContrasenaCambio.focus();
+  }
+}
+
+function verificarContrasena() {
+  const contrasena = inputContrasena.value.trim();
+  if (contrasena === "1510") {
+    rolUsuario = 'secretario';
+    nombreUsuario = "Secretario";
+    indicadorRol.textContent = 'Secretario';
+    indicadorRol.className = 'indicador-rol secretario';
+    indicadorRol.style.display = 'block';
+    chatInput.disabled = false;
+    chatSendBtn.disabled = false;
+    localStorage.setItem('rolUsuario', rolUsuario);
+    localStorage.setItem('nombreUsuario', nombreUsuario);
+    cargarTachadosUsuario();
+    aplicarRestriccionesRol();
+    document.body.classList.add('rol-' + rolUsuario);
+    cargarDatosDesdeFirebase();
+    cargarMensajesChat();
+    modalContrasena.style.display = 'none';
+    inputContrasena.value = '';
+    cambiarUsuarioBtn.style.display = 'block';
+    usuarioId = generarIdUnico();
+    registrarUsuarioEnFirebase();
+    indicadorRoles.classList.add('visible');
+    monitorearEstadosRoles();
+  } else {
+    alert("Contraseña incorrecta. Intente nuevamente.");
+    inputContrasena.value = '';
+    inputContrasena.focus();
+  }
+}
+
+opcionesRol.forEach(opcion => {
+  opcion.addEventListener('click', function() {
+    opcionesRol.forEach(o => o.classList.remove('seleccionado'));
+    this.classList.add('seleccionado');
+    btnConfirmarRol.disabled = false;
+    btnConfirmarRol.dataset.rol = this.dataset.rol;
+  });
+});
+
+btnConfirmarRol.addEventListener('click', function() {
+  if (this.dataset.rol) {
+    seleccionarRol(this.dataset.rol);
+  }
+});
+
+btnCancelarContrasena.addEventListener('click', function() {
+  modalContrasena.style.display = 'none';
+  modalRol.style.display = 'flex';
+  inputContrasena.value = '';
+});
+
+btnVerificarContrasena.addEventListener('click', verificarContrasena);
+inputContrasena.addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') verificarContrasena();
+});
+modalContrasena.addEventListener('click', function(e) {
+  if (e.target === modalContrasena) {
+    modalContrasena.style.display = 'none';
+    inputContrasena.value = '';
+  }
+});
+
+btnCancelarCambio.addEventListener('click', function() {
+  modalCambiarUsuario.style.display = 'none';
+  inputContrasenaCambio.value = '';
+});
+
+btnVerificarCambio.addEventListener('click', verificarContrasenaCambio);
+inputContrasenaCambio.addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') btnVerificarCambio.click();
+});
+modalCambiarUsuario.addEventListener('click', function(e) {
+  if (e.target === modalCambiarUsuario) {
+    modalCambiarUsuario.style.display = 'none';
+    inputContrasenaCambio.value = '';
+  }
+});
+
+cambiarUsuarioBtn.addEventListener('click', cambiarUsuario);
+
+chatMinimizeBtn.addEventListener('click', function(e) {
+  e.stopPropagation();
+  chatContainer.classList.toggle('minimized');
+  if (chatContainer.classList.contains('minimized')) {
+    quitarNotificacionChat();
+  } else {
+    marcarMensajesComoLeidos();
+  }
+});
+
+chatCloseBtn.addEventListener('click', function(e) {
+  e.stopPropagation();
+  chatContainer.classList.add('minimized');
+  quitarNotificacionChat();
+});
+
+chatClearBtn.addEventListener('click', function(e) {
+  e.stopPropagation();
+  limpiarChat();
+});
+
+chatHeader.addEventListener('click', function() {
+  if (chatContainer.classList.contains('minimized')) {
+    chatContainer.classList.remove('minimized');
+    chatInput.focus();
+    marcarMensajesComoLeidos();
+  }
+});
+
+chatInput.addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') enviarMensaje();
+});
+chatSendBtn.addEventListener('click', enviarMensaje);
+
+function enviarMensaje() {
+  const texto = chatInput.value.trim();
+  if (texto === '') return;
+  const timestamp = new Date().getTime();
+  const mensaje = {
+    texto: texto,
+    usuario: nombreUsuario,
+    rol: rolUsuario,
+    timestamp: timestamp
+  };
+  database.ref('chat').push(mensaje)
+    .then(() => {
+      chatInput.value = '';
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      ultimoMensajeTimestamp = timestamp;
+      localStorage.setItem('ultimoMensajeTimestamp', ultimoMensajeTimestamp.toString());
+    })
+    .catch(error => {
+      console.error("Error al enviar mensaje:", error);
+    });
+}
+
+function marcarMensajesComoLeidos() {
+  if (ultimoMensajeTimestamp > 0) {
+    localStorage.setItem('ultimoMensajeTimestamp', ultimoMensajeTimestamp.toString());
+  }
+  quitarNotificacionChat();
+}
+
+function quitarNotificacionChat() {
+  chatHeader.classList.remove('notification');
+  notificacionActiva = false;
+  contadorMensajesNoVistos = 0;
+  const existingBadge = document.querySelector('.chat-notification-badge');
+  if (existingBadge) existingBadge.remove();
+}
+
+function mostrarNotificacionChat() {
+  if (chatContainer.classList.contains('minimized') || !notificacionActiva) {
+    chatHeader.classList.add('notification');
+  }
+}
+
+function cargarMensajesChat() {
+  const ref = database.ref('chat');
+  const ultimoMensajeVisto = localStorage.getItem('ultimoMensajeTimestamp');
+  if (ultimoMensajeVisto) {
+    ultimoMensajeTimestamp = parseInt(ultimoMensajeVisto);
+  }
+  ref.on('child_added', (snapshot) => {
+    const mensaje = snapshot.val();
+    if (mensaje.timestamp > ultimoMensajeTimestamp) {
+      if (chatContainer.classList.contains('minimized') || mensaje.usuario !== nombreUsuario) {
+        contadorMensajesNoVistos++;
+        mostrarNotificacionChat();
+      }
+      if (mensaje.timestamp > ultimoMensajeTimestamp) {
+        ultimoMensajeTimestamp = mensaje.timestamp;
+      }
+    }
+    mostrarMensaje(mensaje);
+  });
+}
+
+function mostrarMensaje(mensaje) {
+  const div = document.createElement('div');
+  const esPropio = mensaje.usuario === nombreUsuario;
+  const fecha = new Date(mensaje.timestamp);
+  const hora = fecha.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+  div.classList.add('message');
+  div.classList.add(esPropio ? 'own' : 'other');
+  div.innerHTML = `
+    <div class="message-sender">${mensaje.usuario}</div>
+    <div>${mensaje.texto}</div>
+    <div class="message-time">${hora}</div>
+  `;
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function verificarRolGuardado() {
+  const rolGuardado = localStorage.getItem('rolUsuario');
+  const nombreGuardado = localStorage.getItem('nombreUsuario');
+  if (rolGuardado && nombreGuardado) {
+    rolUsuario = rolGuardado;
+    nombreUsuario = nombreGuardado;
+    switch(rolUsuario) {
+      case 'registro':
+        indicadorRol.textContent = 'Registro Titulados';
+        indicadorRol.className = 'indicador-rol registro';
+        break;
+      case 'invitados':
+        indicadorRol.textContent = 'Registro Invitados';
+        indicadorRol.className = 'indicador-rol invitados';
+        break;
+      case 'jefe':
+        indicadorRol.textContent = 'Jefe de Escuela';
+        indicadorRol.className = 'indicador-rol jefe';
+        break;
+      case 'coordinador':
+        indicadorRol.textContent = 'Coordinador Auditorio';
+        indicadorRol.className = 'indicador-rol coordinador';
+        break;
+      case 'secretario':
+        indicadorRol.textContent = 'Secretario';
+        indicadorRol.className = 'indicador-rol secretario';
+        break;
+    }
+    indicadorRol.style.display = 'block';
+    chatInput.disabled = false;
+    chatSendBtn.disabled = false;
+    cargarTachadosUsuario();
+    aplicarRestriccionesRol();
+    document.body.classList.add('rol-' + rolUsuario);
+    cargarDatosDesdeFirebase();
+    cargarMensajesChat();
+    modalRol.style.display = 'none';
+    cambiarUsuarioBtn.style.display = 'block';
+    usuarioId = generarIdUnico();
+    registrarUsuarioEnFirebase();
+    if (rolUsuario === 'secretario') {
+      indicadorRoles.classList.add('visible');
+      monitorearEstadosRoles();
+    }
+    return true;
+  }
+  return false;
+}
+
+function editarOBSManual() {
+  if (rolUsuario !== 'secretario') {
+    alert('Solo el Secretario puede editar el protagonismo.');
+    return;
+  }
+  modalEditarObs.style.display = 'flex';
+  inputRutEditarObs.focus();
+}
+
+function confirmarEdicionOBS() {
+  const rut = inputRutEditarObs.value.trim();
+  const tipoObs = selectTipoObs.value;
+  if (!rut) {
+    alert('Por favor, ingrese un RUT');
+    return;
+  }
+  if (!validarRUT(rut)) {
+    alert('El RUT ingresado no es válido. Debe tener el formato 12345678-9 o 12345678-K');
+    return;
+  }
+  const alumno = datos.find(d => d.AlumnoRUT.toString().toLowerCase() === rut.toLowerCase());
+  if (!alumno) {
+    alert('No se encontró ningún estudiante con el RUT: ' + rut);
+    return;
+  }
+  alumno.OBS = tipoObs;
+  const alumnoFiltrado = datosFiltrados.find(d => d.AlumnoRUT.toString().toLowerCase() === rut.toLowerCase());
+  if (alumnoFiltrado) alumnoFiltrado.OBS = tipoObs;
+  guardarEnFirebase();
+  actualizarFilaPorRUT(rut);
+  modalEditarObs.style.display = 'none';
+  inputRutEditarObs.value = '';
+  selectTipoObs.selectedIndex = 0;
+  alert('Protagonismo actualizado correctamente para: ' + alumno.Nombre);
+}
+
+function mostrarAtrasados() {
+  const atrasados = datos.filter(d => d.LLEGADA === "Atrasado");
+  atrasados.sort((a, b) => {
+    if (!a.HORA) return 1;
+    if (!b.HORA) return -1;
+    return a.HORA.localeCompare(b.HORA);
+  });
+  tablaAtrasadosBody.innerHTML = "";
+  if (atrasados.length === 0) {
+    tablaAtrasadosBody.innerHTML = `
+      <tr><td colspan="5" style="text-align:center;padding:20px;">No hay estudiantes atrasados</td></tr>
+    `;
+    return;
+  }
+  atrasados.forEach(estudiante => {
+    const tr = document.createElement("tr");
+    let ordenHtml = estudiante.OrdenAtrasado || "Sin definir";
+    tr.innerHTML = `
+      <td>${estudiante.NUMERO}</td>
+      <td>${estudiante.Nombre}</td>
+      <td>${estudiante.Carrera}</td>
+      <td>${estudiante.HORA || "Sin registrar"}</td>
+      <td>${ordenHtml}</td>
+    `;
+    tablaAtrasadosBody.appendChild(tr);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const tieneRolGuardado = verificarRolGuardado();
+  if (!tieneRolGuardado) {
+    modalRol.style.display = 'flex';
+  }
+  if (window.innerWidth <= 768) {
+    document.querySelector('thead th').style.top = '60px';
+  }
+
+  btnRestablecerLinea.addEventListener('click', function() {
+    modalRestablecer.style.display = 'flex';
+    inputRutRestablecer.focus();
+  });
+  btnCancelarRestablecer.addEventListener('click', function() {
+    modalRestablecer.style.display = 'none';
+    inputRutRestablecer.value = '';
+  });
+  modalRestablecer.addEventListener('click', function(e) {
+    if (e.target === modalRestablecer) {
+      modalRestablecer.style.display = 'none';
+      inputRutRestablecer.value = '';
+    }
+  });
+  btnConfirmarRestablecer.addEventListener('click', function() {
+    const rut = inputRutRestablecer.value.trim();
+    if (!rut) { alert('Por favor, ingrese un RUT'); return; }
+    if (!validarRUT(rut)) {
+      alert('El RUT ingresado no es válido. Debe tener el formato 12345678-9 o 12345678-K');
+      return;
+    }
+    restablecerLineaPorRUT(rut);
+    modalRestablecer.style.display = 'none';
+    inputRutRestablecer.value = '';
+  });
+  inputRutRestablecer.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') btnConfirmarRestablecer.click();
+  });
+
+  btnCerrarProtagonismo.addEventListener('click', function() {
+    modalProtagonismo.style.display = 'none';
+  });
+  modalProtagonismo.addEventListener('click', function(e) {
+    if (e.target === modalProtagonismo) modalProtagonismo.style.display = 'none';
+  });
+
+  btnCancelarEditarObs.addEventListener('click', function() {
+    modalEditarObs.style.display = 'none';
+    inputRutEditarObs.value = '';
+    selectTipoObs.selectedIndex = 0;
+  });
+  btnConfirmarEditarObs.addEventListener('click', confirmarEdicionOBS);
+  modalEditarObs.addEventListener('click', function(e) {
+    if (e.target === modalEditarObs) {
+      modalEditarObs.style.display = 'none';
+      inputRutEditarObs.value = '';
+      selectTipoObs.selectedIndex = 0;
+    }
+  });
+  inputRutEditarObs.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') btnConfirmarEditarObs.click();
+  });
+
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('nombre-estudiante')) {
+      const rut = e.target.getAttribute('data-rut');
+      if (rut) toggleTachadoEstudiante(rut);
+    }
+  });
+
+  document.addEventListener('click', function() {
+    restaurarColorHeader();
+  });
+
+  btnVerAtrasados.addEventListener('click', function() {
+    mostrarAtrasados();
+    modalAtrasados.style.display = 'flex';
+  });
+  btnCerrarAtrasados.addEventListener('click', function() {
+    modalAtrasados.style.display = 'none';
+  });
+  modalAtrasados.addEventListener('click', function(e) {
+    if (e.target === modalAtrasados) modalAtrasados.style.display = 'none';
+  });
+
+  const btnProtagonismoFlotante = document.getElementById('btn-detalle-protagonismo-flotante');
+  btnProtagonismoFlotante.addEventListener('click', function() {
+    if (rolUsuario !== 'secretario') return;
+    mostrarDetalleProtagonismo();
+    modalProtagonismo.style.display = 'flex';
+  });
+
+  actualizarBotonesFlotantes();
+});
+
+// ✅ CORREGIDO: siempre procesa el snapshot y evita listeners duplicados
+function cargarDatosDesdeFirebase() {
+  const ref = database.ref('asistencia');
+
+  if (listenerAsistencia) {
+    ref.off('value', listenerAsistencia);
+  }
+
+  listenerAsistencia = ref.on('value', (snapshot) => {
+    const data = snapshot.val();
+
+    if (data && Array.isArray(data.lista)) {
+      datos = data.lista.map(e => ({
+        ...e,
+        OrdenAtrasado: e.OrdenAtrasado || ""
+      }));
+    } else {
+      datos = [];
+    }
+
+    datosFiltrados = [...datos];
+    mostrarTabla();
+    actualizarContadores();
+
+    if (data && data.horaEvento) {
+      horaEventoInput.value = data.horaEvento;
+    }
+    if (data && data.nombreArchivo) {
+      nombreArchivoElement.textContent = data.nombreArchivo;
+      archivoCargado = { nombre: data.nombreArchivo };
+    }
+  });
+}
+
+// ✅ CORREGIDO: usa transaction para evitar pisar datos de otros
+function guardarEnFirebase() {
+  const ref = database.ref('asistencia');
+  ref.transaction((actual) => {
+    return {
+      lista: datos,
+      horaEvento: horaEventoInput.value,
+      nombreArchivo: archivoCargado ? archivoCargado.nombre : null
+    };
+  }).catch(error => {
+    console.error("Error al guardar en Firebase:", error);
+  });
+}
+
+function procesarArchivoExcel(data) {
+  const workbook = XLSX.read(data, {type: "array"});
+  const sheetName = workbook.SheetNames[0];
+  const excelData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+  console.log("Datos crudos del Excel:", excelData);
+  datos = excelData.map((item, index) => {
+    const alumnoRUT = item.AlumnoRUT || item.RUT || "";
+    return {
+      NUMERO: index + 1,
+      AlumnoRUT: alumnoRUT.toString(),
+      Nombre: item.Nombre || "",
+      Carrera: item.Carrera || "",
+      Ceremonia: (item.Ceremonia || "").toString(),
+      HORA: "",
+      LLEGADA: "",
+      DESHABILITADO: false,
+      OBS: item.OBS || "",
+      NumeroInvitados: 0,
+      OrdenAtrasado: ""
+    };
+  });
+  console.log("Datos procesados:", datos);
+  guardarEnFirebase();
+  mostrarTabla();
+  actualizarContadores();
+  alert(`✅ Excel cargado correctamente\n📊 ${datos.length} estudiantes importados`);
+}
+
+function actualizarContadores() {
+  const puntual = datos.filter(d => d.LLEGADA === "Puntual").length;
+  const atrasado = datos.filter(d => d.LLEGADA === "Atrasado").length;
+  const presentes = puntual + atrasado;
+  const totalEstudiantes = datos.length;
+
+  const contadorTotalElement = document.getElementById('contador-total');
+  if (contadorTotalElement) contadorTotalElement.textContent = totalEstudiantes;
+
+  if (btnVerAtrasados) {
+    if (atrasado > 0) {
+      btnVerAtrasados.innerHTML = `⏰<span style="position:absolute; top:-5px; right:-5px; background:#e74c3c; color:white; border-radius:50%; width:20px; height:20px; font-size:12px; display:flex; align-items:center; justify-content:center;">${atrasado}</span>`;
+    } else {
+      btnVerAtrasados.innerHTML = '⏰';
+    }
+  }
+
+  if (atrasado > contadorAtrasadosAnterior) {
+    headerPrincipal.classList.add('header-alerta');
+  }
+  contadorAtrasadosAnterior = atrasado;
+  contadorPresentes.textContent = presentes;
+  contadorPuntual.textContent = puntual;
+  contadorAtrasado.textContent = atrasado;
+}
+
+function restaurarColorHeader() {
+  headerPrincipal.classList.remove('header-alerta');
+}
+
+horaEventoInput.addEventListener('change', function() {
+  if (rolUsuario === 'secretario') guardarEnFirebase();
+});
+
+inputExcel.addEventListener("change", function(e) {
+  if (rolUsuario !== 'secretario') {
+    alert('Solo el Secretario puede cargar archivos Excel.');
+    this.value = '';
+    return;
+  }
+  if (e.target.files.length > 0) {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      archivoCargado = { nombre: file.name };
+      procesarArchivoExcel(e.target.result);
+    };
+    reader.readAsArrayBuffer(file);
+  }
+});
+
+function generarThead() {
+  const thead = document.getElementById('tabla-header');
+  thead.innerHTML = '';
+  configColumnas.forEach(columna => {
+    if (columna.roles.includes(rolUsuario)) {
+      const th = document.createElement('th');
+      th.textContent = columna.titulo;
+      th.style.width = columna.ancho;
+      if (columna.id === 'obs' && rolUsuario === 'secretario') {
+        th.classList.add('obs-header-editable');
+        th.addEventListener('click', editarOBSManual);
+      }
+      thead.appendChild(th);
+    }
+  });
+}
+
+function mostrarTabla() {
+  const tbody = document.getElementById('tabla-body');
+  if (!tbody) { console.error("No se encontró tabla-body"); return; }
+  tbody.innerHTML = '';
+  if (datosFiltrados.length === 0) {
+    const columnCount = configColumnas.filter(c => c.roles.includes(rolUsuario)).length;
+    tbody.innerHTML = `<tr><td colspan="${columnCount}" style="text-align:center;padding:20px;">No se encontraron resultados</td></tr>`;
+    return;
+  }
+  datosFiltrados.forEach((fila) => {
+    const tr = document.createElement("tr");
+    tr.setAttribute('data-rut', fila.AlumnoRUT);
+    if (fila.LLEGADA === "Puntual") tr.classList.add("puntual");
+    if (fila.LLEGADA === "Atrasado") tr.classList.add("atrasado");
+    if (fila.OBS && (fila.OBS === "Mérito" || fila.OBS === "Discurso" || fila.OBS === "Discurso y Mérito")) {
+      tr.classList.add("fila-protagonismo");
+    }
+    configColumnas.forEach(columna => {
+      if (columna.roles.includes(rolUsuario)) {
+        const td = document.createElement("td");
+        try {
+          const contenido = columna.render(fila);
+          if (typeof contenido === 'string') {
+            td.textContent = contenido;
+          } else if (contenido instanceof Node) {
+            td.appendChild(contenido);
+          } else {
+            td.textContent = String(contenido);
+          }
+        } catch (error) {
+          console.error("Error al renderizar celda:", error, columna, fila);
+          td.textContent = "Error";
+        }
+        tr.appendChild(td);
+      }
+    });
+    tbody.appendChild(tr);
+  });
+
+  const trAdicional = document.createElement("tr");
+  trAdicional.className = "fila-adicional";
+  const columnCount = configColumnas.filter(c => c.roles.includes(rolUsuario)).length;
+  const tdAdicional = document.createElement("td");
+  tdAdicional.colSpan = columnCount;
+  tdAdicional.style.height = "40px";
+  tdAdicional.style.backgroundColor = "transparent";
+  trAdicional.appendChild(tdAdicional);
+  tbody.appendChild(trAdicional);
+
+  console.log("Tabla mostrada correctamente con", datosFiltrados.length, "filas + 1 fila adicional");
+}
+
+function mostrarDetalleProtagonismo() {
+  const estudiantesProtagonismo = datos.filter(d =>
+    d.OBS === "Discurso" || d.OBS === "Mérito" || d.OBS === "Discurso y Mérito"
+  );
+  estudiantesProtagonismo.sort((a, b) => {
+    const prioridad = { "Mérito": 1, "Discurso": 2, "Discurso y Mérito": 3 };
+    if (prioridad[a.OBS] !== prioridad[b.OBS]) {
+      return prioridad[a.OBS] - prioridad[b.OBS];
+    }
+    return a.NUMERO - b.NUMERO;
+  });
+  tablaProtagonismoBody.innerHTML = "";
+  if (estudiantesProtagonismo.length === 0) {
+    tablaProtagonismoBody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:20px;">No hay estudiantes con protagonismo</td></tr>`;
+    return;
+  }
+  estudiantesProtagonismo.forEach(estudiante => {
+    const tr = document.createElement("tr");
+    let estadoAsistencia = "Ausente";
+    let claseAsistencia = "ausente";
+    if (estudiante.LLEGADA === "Puntual") {
+      estadoAsistencia = "Puntual";
+      claseAsistencia = "puntual-tabla";
+    } else if (estudiante.LLEGADA === "Atrasado") {
+      estadoAsistencia = "Atrasado";
+      claseAsistencia = 'atrasado-tabla';
+    }
+    tr.innerHTML = `
+      <td>${estudiante.NUMERO}</td>
+      <td>${estudiante.Nombre}</td>
+      <td>${estudiante.OBS}</td>
+      <td class="${claseAsistencia}">${estudiante.LLEGADA || estadoAsistencia}</td>
+    `;
+    tablaProtagonismoBody.appendChild(tr);
+  });
+}
+
+function validarRUT(rut) {
+  if (!rut || typeof rut !== 'string') return false;
+  rut = rut.replace(/[\.\-\s]/g, '');
+  if (!/^[0-9]+[0-9kK]{1}$/.test(rut)) return false;
+  const numero = rut.slice(0, -1);
+  const dv = rut.slice(-1).toUpperCase();
+  let suma = 0;
+  let multiplicador = 2;
+  for (let i = numero.length - 1; i >= 0; i--) {
+    suma += parseInt(numero.charAt(i)) * multiplicador;
+    multiplicador = multiplicador === 7 ? 2 : multiplicador + 1;
+  }
+  const dvEsperado = 11 - (suma % 11);
+  const dvCalculado = dvEsperado === 11 ? '0' : dvEsperado === 10 ? 'K' : dvEsperado.toString();
+  return dvCalculado === dv;
+}
+
+function actualizarFilaPorRUT(rut) {
+  const alumno = datos.find(d => d.AlumnoRUT.toString().toLowerCase() === rut.toLowerCase());
+  if (!alumno) return;
+  const fila = document.querySelector(`tr[data-rut="${rut}"]`);
+  if (!fila) return;
+
+  fila.className = '';
+  if (alumno.LLEGADA === "Puntual") fila.classList.add("puntual");
+  if (alumno.LLEGADA === "Atrasado") fila.classList.add("atrasado");
+  if (alumno.OBS && (alumno.OBS === "Mérito" || alumno.OBS === "Discurso" || alumno.OBS === "Discurso y Mérito")) {
+    fila.classList.add("fila-protagonismo");
+  }
+
+  const checkbox = fila.querySelector('.chk-asistencia');
+  if (checkbox) {
+    checkbox.checked = !!alumno.LLEGADA;
+    checkbox.disabled = alumno.DESHABILITADO;
+    if (alumno.DESHABILITADO) {
+      checkbox.style.backgroundColor = '#e0e0e0';
+      checkbox.style.borderColor = '#b0b0b0';
+    } else {
+      checkbox.style.backgroundColor = '';
+      checkbox.style.borderColor = '';
+    }
+  }
+
+  const celdas = fila.querySelectorAll('td');
+  const celdaHora = celdas[6];
+  if (celdaHora) celdaHora.textContent = alumno.HORA || '';
+  const celdaOBS = celdas[7];
+  if (celdaOBS) celdaOBS.textContent = alumno.OBS || '';
+  const celdaNombre = celdas[2];
+  if (celdaNombre) {
+    const span = celdaNombre.querySelector('.nombre-estudiante');
+    if (span) {
+      if (estaTachado(alumno.AlumnoRUT)) {
+        span.classList.add('nombre-tachado');
+      } else {
+        span.classList.remove('nombre-tachado');
+      }
+    }
+  }
+}
+
+document.addEventListener("change", function(e) {
+  if (e.target.classList.contains("chk-asistencia")) {
+    const rut = e.target.dataset.rut;
+    const estaMarcado = e.target.checked;
+
+    if (timers[rut]) {
+      clearTimeout(timers[rut]);
+      delete timers[rut];
+    }
+
+    if (estaMarcado) {
+      registrarAsistencia(rut);
+      timers[rut] = setTimeout(() => {
+        bloquearFila(rut);
+      }, 5000);
+    } else {
+      eliminarAsistencia(rut);
+    }
+
+    buscadorInput.value = '';
+    datosFiltrados = [...datos];
+    mostrarTabla();
+
+    const filaMarcada = document.querySelector(`.chk-asistencia[data-rut="${rut}"]`)?.closest('tr');
+    if (filaMarcada) {
+      filaMarcada.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+});
+
+function registrarAsistencia(rut) {
+  const alumno = datos.find(d => d.AlumnoRUT == rut);
+  if (!alumno) return;
+  const ahora = new Date();
+  const horaEvento = document.getElementById("hora-evento").value.split(":");
+  const inicioEvento = new Date();
+  inicioEvento.setHours(parseInt(horaEvento[0]), parseInt(horaEvento[1]), 0, 0);
+  alumno.HORA = ahora.toTimeString().substring(0, 8);
+  alumno.LLEGADA = ahora <= inicioEvento ? "Puntual" : "Atrasado";
+  const alumnoFiltrado = datosFiltrados.find(d => d.AlumnoRUT == rut);
+  if (alumnoFiltrado) {
+    alumnoFiltrado.HORA = alumno.HORA;
+    alumnoFiltrado.LLEGADA = alumno.LLEGADA;
+  }
+  guardarEnFirebase();
+  actualizarFilaPorRUT(rut);
+  actualizarContadores();
+}
+
+function eliminarAsistencia(rut) {
+  const alumno = datos.find(d => d.AlumnoRUT == rut);
+  if (!alumno) return;
+  alumno.HORA = "";
+  alumno.LLEGADA = "";
+  const alumnoFiltrado = datosFiltrados.find(d => d.AlumnoRUT == rut);
+  if (alumnoFiltrado) {
+    alumnoFiltrado.HORA = "";
+    alumnoFiltrado.LLEGADA = "";
+  }
+  guardarEnFirebase();
+  actualizarFilaPorRUT(rut);
+  actualizarContadores();
+}
+
+function bloquearFila(rut) {
+  const alumno = datos.find(d => d.AlumnoRUT == rut);
+  if (!alumno) return;
+  alumno.DESHABILITADO = true;
+  const alumnoFiltrado = datosFiltrados.find(d => d.AlumnoRUT == rut);
+  if (alumnoFiltrado) alumnoFiltrado.DESHABILITADO = true;
+  guardarEnFirebase();
+  const checkbox = document.querySelector(`.chk-asistencia[data-rut="${rut}"]`);
+  if (checkbox) {
+    checkbox.disabled = true;
+    checkbox.style.backgroundColor = '#e0e0e0';
+    checkbox.style.borderColor = '#b0b0b0';
+  }
+}
+
+function restablecerLineaPorRUT(rut) {
+  const alumno = datos.find(d => d.AlumnoRUT.toString().toLowerCase() === rut.toLowerCase());
+  if (!alumno) {
+    alert('No se encontró ningún estudiante con el RUT: ' + rut);
+    return;
+  }
+  if (timers[alumno.AlumnoRUT]) {
+    clearTimeout(timers[alumno.AlumnoRUT]);
+    delete timers[alumno.AlumnoRUT];
+  }
+  alumno.HORA = "";
+  alumno.LLEGADA = "";
+  alumno.DESHABILITADO = false;
+  alumno.OBS = "";
+  alumno.NumeroInvitados = 0;
+  alumno.OrdenAtrasado = "";
+  const alumnoFiltrado = datosFiltrados.find(d => d.AlumnoRUT.toString().toLowerCase() === rut.toLowerCase());
+  if (alumnoFiltrado) {
+    alumnoFiltrado.HORA = "";
+    alumnoFiltrado.LLEGADA = "";
+    alumnoFiltrado.DESHABILITADO = false;
+    alumnoFiltrado.OBS = "";
+    alumnoFiltrado.NumeroInvitados = 0;
+    alumnoFiltrado.OrdenAtrasado = "";
+  }
+  guardarEnFirebase();
+  actualizarFilaPorRUT(rut);
+  actualizarContadores();
+  alert('Línea restablecida correctamente para: ' + alumno.Nombre);
+  buscadorInput.value = '';
+  datosFiltrados = [...datos];
+  mostrarTabla();
+}
+
+function resetearAsistencia() {
+  if (!confirm("¿Está seguro que desea restablecer toda la asistencia? Esta acción eliminará todas las marcaciones realizadas.")) {
+    return;
+  }
+  const contraseña = prompt("Ingrese la contraseña para confirmar:");
+  if (contraseña !== "1510") {
+    alert("Contraseña incorrecta. La operación ha sido cancelada.");
+    return;
+  }
+  for (const timer in timers) {
+    clearTimeout(timers[timer]);
+    delete timers[timer];
+  }
+  datos.forEach(alumno => {
+    alumno.HORA = "";
+    alumno.LLEGADA = "";
+    alumno.DESHABILITADO = false;
+    alumno.OBS = "";
+    alumno.NumeroInvitados = 0;
+    alumno.OrdenAtrasado = "";
+  });
+  datosFiltrados = [...datos];
+  guardarEnFirebase();
+  mostrarTabla();
+  actualizarContadores();
+  buscadorInput.value = "";
+}
+
+document.getElementById("buscador").addEventListener("input", function() {
+  const texto = this.value.toLowerCase();
+  datosFiltrados = datos.filter(d =>
+    (d.AlumnoRUT && d.AlumnoRUT.toString().toLowerCase().includes(texto)) ||
+    (d.Nombre && d.Nombre.toLowerCase().includes(texto))
+  );
+  mostrarTabla();
+});
+
+function exportarExcel() {
+  if (!archivoCargado) {
+    alert("Primero debe cargar un archivo Excel");
+    return;
+  }
+  const datosExportar = datos.map(({NUMERO, ...rest}) => rest);
+  const ws = XLSX.utils.json_to_sheet(datosExportar);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Asistencia");
+  XLSX.writeFile(wb, "asistencia_actualizada.xlsx");
+}
+
+window.addEventListener('resize', function() {
+  if (window.innerWidth <= 768) {
+    document.querySelector('thead th').style.top = '60px';
+    const btnProtagonismoFlotante = document.getElementById('btn-detalle-protagonismo-flotante');
+    const btnAtrasados = document.getElementById('btn-ver-atrasados');
+    if (rolUsuario === 'secretario') {
+      btnProtagonismoFlotante.style.bottom = '200px';
+      btnAtrasados.style.bottom = '130px';
+    }
+  } else {
+    document.querySelector('thead th').style.top = '0';
+    const btnAtrasados = document.getElementById('btn-ver-atrasados');
+    if (rolUsuario === 'secretario') {
+      btnAtrasados.style.bottom = '150px';
+    } else {
+      btnAtrasados.style.bottom = '80px';
+    }
+  }
+});
+
+window.addEventListener('beforeunload', function() {
+  if (usuarioId) {
+    database.ref('usuarios/' + usuarioId).remove();
+  }
+});
+</script>
+</body>
+</html>
