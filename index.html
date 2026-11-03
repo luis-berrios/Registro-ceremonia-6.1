@@ -107,6 +107,15 @@
     .opcion-rol.coordinador:hover, .opcion-rol.coordinador.seleccionado { background-color: var(--color-rol-coordinador); color: white; }
     .opcion-rol.secretario { border-color: var(--color-rol-secretario); color: var(--color-rol-secretario); }
     .opcion-rol.secretario:hover, .opcion-rol.secretario.seleccionado { background-color: var(--color-rol-secretario); color: white; }
+    
+
+
+
+
+/* (Fin FRACCION 1) */
+
+
+
 
     .indicador-rol {
       position: fixed; top: 10px; right: 10px; background-color: #f0f0f0;
@@ -205,6 +214,16 @@
       padding: 0; font-size: 0.9rem; margin-left: 5px;
     }
     .chat-send-btn:disabled { background-color: #ccc; cursor: not-allowed; }
+    
+
+
+
+
+
+/* (Fin FRACCION 2) */
+
+
+
 
 
     .contenedor-tabla {
@@ -302,6 +321,15 @@
     .modal-botones button { flex: none; padding: 8px 16px; }
     #btn-cancelar-restablecer { background-color: #95a5a6; }
     #btn-confirmar-restablecer { background-color: var(--color-secundario); }
+   
+
+
+
+
+ /* (Fin FRACCION 3) */
+
+
+
 
     .tabla-protagonismo { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
     .tabla-protagonismo th { background-color: var(--color-destacado); color: white; padding: 10px; text-align: center; }
@@ -426,6 +454,14 @@
   </style>
 </head>
 <body>
+ 
+
+
+
+   /* (Fin FRACCION 4) */
+
+
+
 
 <!-- Modal de selección de rol -->
 <div id="modal-rol">
@@ -517,6 +553,14 @@
   </div>
 </div>
 
+
+
+
+
+<!-- (Fin FRACCION 5) -->
+
+
+
 <!-- Botón flotante para detalle de protagonismo -->
 <button id="btn-detalle-protagonismo-flotante" class="boton-protagonismo" title="Detalle de Protagonismo">
   👑
@@ -530,7 +574,7 @@
 <!-- Modal para atrasados -->
 <div id="modal-atrasados" class="modal">
   <div class="modal-atrasados-contenido">
-    <h3>Estudiantes Atrasados 
+    <h3>Estudiantes Atrasados
       <button class="cerrar-modal" id="cerrar-modal-atrasados">×</button>
     </h3>
     <div id="contenido-atrasados">
@@ -580,7 +624,7 @@
           </div>
         </div>
       </div>
-      
+
       <div class="controles-header">
         <div class="grupo-control-compacto" id="grupo-excel" style="display: none;">
           <label>Subir archivo Excel:</label>
@@ -623,6 +667,15 @@
 <button id="btn-restablecer-linea" class="boton-flotante boton-accion-oculto" title="Restablecer línea específica">
   ↺
 </button>
+
+
+
+
+
+<!-- (Fin FRACCION 6) -->
+
+
+
 
 <!-- Modal para ingresar el RUT -->
 <div id="modal-restablecer" class="modal">
@@ -667,13 +720,8 @@
     <h3>Editar Protagonismo</h3>
     <p>Ingrese el RUT del estudiante:</p>
     <input type="text" id="input-rut-editar-obs" placeholder="Ej: 12345678-9">
-    <p>Seleccione el tipo de protagonismo:</p>
-    <select id="select-tipo-obs">
-      <option value="">-- Sin protagonismo --</option>
-      <option value="Mérito">Mérito</option>
-      <option value="Discurso">Discurso</option>
-      <option value="Discurso y Mérito">Discurso y Mérito</option>
-    </select>
+    <p>Tipo de protagonismo (dejar vacío para quitar):</p>
+    <input type="text" id="select-tipo-obs" placeholder="Ej: Mérito, Discurso, Autoridad...">
     <div class="modal-botones">
       <button id="btn-cancelar-editar-obs">Cancelar</button>
       <button id="btn-confirmar-editar-obs">Confirmar</button>
@@ -706,7 +754,7 @@ const headerPrincipal = document.getElementById('header-principal');
 let rolUsuario = null;
 let nombreUsuario = "";
 
-// 🔧 NUEVO: control del listener de Firebase para evitar duplicados
+// Control del listener de Firebase para evitar duplicados
 let listenerAsistencia = null;
 
 // Elementos del modal de rol
@@ -742,6 +790,13 @@ const chatClearBtn = document.getElementById('chat-clear');
 let ultimoMensajeTimestamp = 0;
 let notificacionActiva = false;
 let contadorMensajesNoVistos = 0;
+
+
+
+// (Fin FRACCION 7)
+
+
+
 
 // Elementos del contador
 let contadorPresentes = document.getElementById('contador-presentes');
@@ -794,6 +849,11 @@ const estadoInvitados = document.getElementById('estado-invitados');
 const estadoCoordinador = document.getElementById('estado-coordinador');
 const estadoJefe = document.getElementById('estado-jefe');
 let usuarioId = null;
+
+// ✅ NUEVO: un estudiante tiene protagonismo si OBS tiene cualquier texto no vacío
+function tieneProtagonismo(obs) {
+  return obs !== undefined && obs !== null && String(obs).trim() !== "";
+}
 
 // CONFIGURACIÓN DE COLUMNAS
 const configColumnas = [
@@ -897,6 +957,16 @@ const configColumnas = [
     }
   }
 ];
+
+
+
+
+
+// (Fin FRACCION 8)
+
+
+
+
 
 function actualizarOrdenAtrasado(rut, valor) {
   const alumno = datos.find(d => d.AlumnoRUT.toString().toLowerCase() === rut.toLowerCase());
@@ -1055,26 +1125,12 @@ function aplicarRestriccionesRol() {
       horaEventoInput.style.cursor = 'not-allowed';
       break;
     case 'invitados':
-      btnExportar.classList.add('elemento-oculto');
-      btnReset.classList.add('elemento-oculto');
-      btnFlotante.classList.add('elemento-oculto');
-      if (contador) contador.classList.add('elemento-oculto');
-      horaEventoInput.readOnly = true;
-      horaEventoInput.style.backgroundColor = '#f5f5f5';
-      horaEventoInput.style.cursor = 'not-allowed';
-      break;
     case 'jefe':
-      btnExportar.classList.add('elemento-oculto');
-      btnReset.classList.add('elemento-oculto');
-      btnFlotante.classList.add('elemento-oculto');
-      horaEventoInput.readOnly = true;
-      horaEventoInput.style.backgroundColor = '#f5f5f5';
-      horaEventoInput.style.cursor = 'not-allowed';
-      break;
     case 'coordinador':
       btnExportar.classList.add('elemento-oculto');
       btnReset.classList.add('elemento-oculto');
       btnFlotante.classList.add('elemento-oculto');
+      if (contador) contador.classList.add('elemento-oculto');
       horaEventoInput.readOnly = true;
       horaEventoInput.style.backgroundColor = '#f5f5f5';
       horaEventoInput.style.cursor = 'not-allowed';
@@ -1090,6 +1146,16 @@ function aplicarRestriccionesRol() {
   generarThead();
   mostrarTabla();
 }
+
+
+
+
+
+// (Fin FRACCION 9)
+
+
+
+
 
 firebase.database().ref('.info/connected').on('value', function(snapshot) {
   if (snapshot.val() === true) {
@@ -1157,11 +1223,6 @@ function seleccionarRol(rol) {
       indicadorRol.textContent = 'Coordinador Auditorio';
       indicadorRol.className = 'indicador-rol coordinador';
       break;
-    case 'secretario':
-      nombreUsuario = "Secretario";
-      indicadorRol.textContent = 'Secretario';
-      indicadorRol.className = 'indicador-rol secretario';
-      break;
   }
   indicadorRol.style.display = 'block';
   modalRol.style.display = 'none';
@@ -1180,6 +1241,37 @@ function seleccionarRol(rol) {
   if (rolUsuario === 'secretario') {
     indicadorRoles.classList.add('visible');
     monitorearEstadosRoles();
+  }
+}
+
+function verificarContrasena() {
+  const contrasena = inputContrasena.value.trim();
+  if (contrasena === "1510") {
+    rolUsuario = 'secretario';
+    nombreUsuario = "Secretario";
+    indicadorRol.textContent = 'Secretario';
+    indicadorRol.className = 'indicador-rol secretario';
+    indicadorRol.style.display = 'block';
+    chatInput.disabled = false;
+    chatSendBtn.disabled = false;
+    localStorage.setItem('rolUsuario', rolUsuario);
+    localStorage.setItem('nombreUsuario', nombreUsuario);
+    cargarTachadosUsuario();
+    aplicarRestriccionesRol();
+    document.body.classList.add('rol-' + rolUsuario);
+    cargarDatosDesdeFirebase();
+    cargarMensajesChat();
+    modalContrasena.style.display = 'none';
+    inputContrasena.value = '';
+    cambiarUsuarioBtn.style.display = 'block';
+    usuarioId = generarIdUnico();
+    registrarUsuarioEnFirebase();
+    indicadorRoles.classList.add('visible');
+    monitorearEstadosRoles();
+  } else {
+    alert("Contraseña incorrecta. Intente nuevamente.");
+    inputContrasena.value = '';
+    inputContrasena.focus();
   }
 }
 
@@ -1218,36 +1310,12 @@ function verificarContrasenaCambio() {
   }
 }
 
-function verificarContrasena() {
-  const contrasena = inputContrasena.value.trim();
-  if (contrasena === "1510") {
-    rolUsuario = 'secretario';
-    nombreUsuario = "Secretario";
-    indicadorRol.textContent = 'Secretario';
-    indicadorRol.className = 'indicador-rol secretario';
-    indicadorRol.style.display = 'block';
-    chatInput.disabled = false;
-    chatSendBtn.disabled = false;
-    localStorage.setItem('rolUsuario', rolUsuario);
-    localStorage.setItem('nombreUsuario', nombreUsuario);
-    cargarTachadosUsuario();
-    aplicarRestriccionesRol();
-    document.body.classList.add('rol-' + rolUsuario);
-    cargarDatosDesdeFirebase();
-    cargarMensajesChat();
-    modalContrasena.style.display = 'none';
-    inputContrasena.value = '';
-    cambiarUsuarioBtn.style.display = 'block';
-    usuarioId = generarIdUnico();
-    registrarUsuarioEnFirebase();
-    indicadorRoles.classList.add('visible');
-    monitorearEstadosRoles();
-  } else {
-    alert("Contraseña incorrecta. Intente nuevamente.");
-    inputContrasena.value = '';
-    inputContrasena.focus();
-  }
-}
+
+
+
+// (Fin FRACCION 10)
+
+
 
 opcionesRol.forEach(opcion => {
   opcion.addEventListener('click', function() {
@@ -1259,9 +1327,7 @@ opcionesRol.forEach(opcion => {
 });
 
 btnConfirmarRol.addEventListener('click', function() {
-  if (this.dataset.rol) {
-    seleccionarRol(this.dataset.rol);
-  }
+  if (this.dataset.rol) seleccionarRol(this.dataset.rol);
 });
 
 btnCancelarContrasena.addEventListener('click', function() {
@@ -1462,6 +1528,16 @@ function verificarRolGuardado() {
   return false;
 }
 
+
+
+
+
+// (Fin FRACCION 11)
+
+
+
+
+
 function editarOBSManual() {
   if (rolUsuario !== 'secretario') {
     alert('Solo el Secretario puede editar el protagonismo.');
@@ -1494,7 +1570,7 @@ function confirmarEdicionOBS() {
   actualizarFilaPorRUT(rut);
   modalEditarObs.style.display = 'none';
   inputRutEditarObs.value = '';
-  selectTipoObs.selectedIndex = 0;
+  selectTipoObs.value = '';
   alert('Protagonismo actualizado correctamente para: ' + alumno.Nombre);
 }
 
@@ -1574,14 +1650,14 @@ document.addEventListener('DOMContentLoaded', function() {
   btnCancelarEditarObs.addEventListener('click', function() {
     modalEditarObs.style.display = 'none';
     inputRutEditarObs.value = '';
-    selectTipoObs.selectedIndex = 0;
+    selectTipoObs.value = '';
   });
   btnConfirmarEditarObs.addEventListener('click', confirmarEdicionOBS);
   modalEditarObs.addEventListener('click', function(e) {
     if (e.target === modalEditarObs) {
       modalEditarObs.style.display = 'none';
       inputRutEditarObs.value = '';
-      selectTipoObs.selectedIndex = 0;
+      selectTipoObs.value = '';
     }
   });
   inputRutEditarObs.addEventListener('keypress', function(e) {
@@ -1747,6 +1823,15 @@ inputExcel.addEventListener("change", function(e) {
   }
 });
 
+
+
+
+// (Fin FRACCION 12)
+
+
+
+
+
 function generarThead() {
   const thead = document.getElementById('tabla-header');
   thead.innerHTML = '';
@@ -1778,7 +1863,8 @@ function mostrarTabla() {
     tr.setAttribute('data-rut', fila.AlumnoRUT);
     if (fila.LLEGADA === "Puntual") tr.classList.add("puntual");
     if (fila.LLEGADA === "Atrasado") tr.classList.add("atrasado");
-    if (fila.OBS && (fila.OBS === "Mérito" || fila.OBS === "Discurso" || fila.OBS === "Discurso y Mérito")) {
+    // ✅ MEJORADO: cualquier OBS no vacío marca protagonismo
+    if (tieneProtagonismo(fila.OBS)) {
       tr.classList.add("fila-protagonismo");
     }
     configColumnas.forEach(columna => {
@@ -1817,16 +1903,17 @@ function mostrarTabla() {
 }
 
 function mostrarDetalleProtagonismo() {
-  const estudiantesProtagonismo = datos.filter(d =>
-    d.OBS === "Discurso" || d.OBS === "Mérito" || d.OBS === "Discurso y Mérito"
-  );
+  // ✅ MEJORADO: cualquier OBS no vacío entra al detalle
+  const estudiantesProtagonismo = datos.filter(d => tieneProtagonismo(d.OBS));
+
+  // ✅ MEJORADO: ordenar alfabéticamente por OBS y luego por número
   estudiantesProtagonismo.sort((a, b) => {
-    const prioridad = { "Mérito": 1, "Discurso": 2, "Discurso y Mérito": 3 };
-    if (prioridad[a.OBS] !== prioridad[b.OBS]) {
-      return prioridad[a.OBS] - prioridad[b.OBS];
-    }
+    const obsA = String(a.OBS || "").toLowerCase();
+    const obsB = String(b.OBS || "").toLowerCase();
+    if (obsA !== obsB) return obsA.localeCompare(obsB);
     return a.NUMERO - b.NUMERO;
   });
+
   tablaProtagonismoBody.innerHTML = "";
   if (estudiantesProtagonismo.length === 0) {
     tablaProtagonismoBody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:20px;">No hay estudiantes con protagonismo</td></tr>`;
@@ -1879,7 +1966,8 @@ function actualizarFilaPorRUT(rut) {
   fila.className = '';
   if (alumno.LLEGADA === "Puntual") fila.classList.add("puntual");
   if (alumno.LLEGADA === "Atrasado") fila.classList.add("atrasado");
-  if (alumno.OBS && (alumno.OBS === "Mérito" || alumno.OBS === "Discurso" || alumno.OBS === "Discurso y Mérito")) {
+  // ✅ MEJORADO: cualquier OBS no vacío marca protagonismo
+  if (tieneProtagonismo(alumno.OBS)) {
     fila.classList.add("fila-protagonismo");
   }
 
