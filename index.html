@@ -1088,6 +1088,11 @@ function actualizarNumeroInvitados(rut, numero) {
   alumno.NumeroInvitados = numero;
   const alumnoFiltrado = datosFiltrados.find(d => d.AlumnoRUT.toString().toLowerCase() === rut.toLowerCase());
   if (alumnoFiltrado) alumnoFiltrado.NumeroInvitados = numero;
+    const filaActual = document.querySelector(`tr[data-rut="${rut}"]`);
+  if (filaActual && rolUsuario === 'invitados') {
+    if (numero > 0) filaActual.classList.add('fila-invitados-destacada');
+    else filaActual.classList.remove('fila-invitados-destacada');
+  }
   guardarEnFirebase();
 }
 
@@ -1869,6 +1874,13 @@ function mostrarTabla() {
     tr.setAttribute('data-rut', fila.AlumnoRUT);
     if (fila.LLEGADA === "Puntual") tr.classList.add("puntual");
     if (fila.LLEGADA === "Atrasado") tr.classList.add("atrasado");
+        // Opción 3: resaltar solo filas con invitados ingresados (rol invitados)
+    if (rolUsuario === 'invitados') {
+      const tieneInvitados = fila.NumeroInvitados && fila.NumeroInvitados > 0;
+      if (tieneInvitados) {
+        tr.classList.add('fila-invitados-destacada');
+      }
+    }
     // ✅ MEJORADO: cualquier OBS no vacío marca protagonismo
     if (tieneProtagonismo(fila.OBS)) {
       tr.classList.add("fila-protagonismo");
@@ -1973,16 +1985,7 @@ function actualizarFilaPorRUT(rut) {
   if (alumno.LLEGADA === "Puntual") fila.classList.add("puntual");
   if (alumno.LLEGADA === "Atrasado") fila.classList.add("atrasado");
 
-    // Opción 3: resaltar solo filas con invitados ingresados (rol invitados)
-    if (rolUsuario === 'invitados') {
-      const tieneInvitados = fila.NumeroInvitados && fila.NumeroInvitados > 0;
-      if (tieneInvitados) {
-        tr.classList.add('fila-invitados-destacada');
-      }
-    }
-
-
-  
+ 
   // ✅ MEJORADO: cualquier OBS no vacío marca protagonismo
   if (tieneProtagonismo(alumno.OBS)) {
     fila.classList.add("fila-protagonismo");
