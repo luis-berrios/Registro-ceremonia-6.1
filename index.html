@@ -107,7 +107,13 @@
     .opcion-rol.coordinador:hover, .opcion-rol.coordinador.seleccionado { background-color: var(--color-rol-coordinador); color: white; }
     .opcion-rol.secretario { border-color: var(--color-rol-secretario); color: var(--color-rol-secretario); }
     .opcion-rol.secretario:hover, .opcion-rol.secretario.seleccionado { background-color: var(--color-rol-secretario); color: white; }
-    
+        /* Opción 3: resaltar filas con invitados ingresados */
+    .fila-invitados-destacada {
+      background-color: #fff3e0 !important;
+    }
+    .fila-invitados-destacada td {
+      border-color: #ffb74d;
+    }
 
 
 
@@ -1966,6 +1972,17 @@ function actualizarFilaPorRUT(rut) {
   fila.className = '';
   if (alumno.LLEGADA === "Puntual") fila.classList.add("puntual");
   if (alumno.LLEGADA === "Atrasado") fila.classList.add("atrasado");
+
+    // Opción 3: resaltar solo filas con invitados ingresados (rol invitados)
+    if (rolUsuario === 'invitados') {
+      const tieneInvitados = fila.NumeroInvitados && fila.NumeroInvitados > 0;
+      if (tieneInvitados) {
+        tr.classList.add('fila-invitados-destacada');
+      }
+    }
+
+
+  
   // ✅ MEJORADO: cualquier OBS no vacío marca protagonismo
   if (tieneProtagonismo(alumno.OBS)) {
     fila.classList.add("fila-protagonismo");
