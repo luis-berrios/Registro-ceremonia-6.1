@@ -1,0 +1,169 @@
+/* ============================================================
+   TELEPROMPTER - Estilos encapsulados en #vista-maestro
+   No afectan al resto de la app
+   ============================================================ */
+
+#vista-maestro {
+  display: none;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  position: fixed;
+  top: 0; left: 0;
+  background: #111;
+  color: #fff;
+  font-family: system-ui, -apple-system, sans-serif;
+  z-index: 1500;
+  overflow: hidden;
+}
+
+#vista-maestro.activa { display: flex; }
+
+/* --- Barra superior del teleprompter --- */
+#vista-maestro #tp-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  background: #1e1e1e;
+  flex-wrap: wrap;
+  align-items: center;
+  border-bottom: 1px solid #333;
+  font-size: 13px;
+  z-index: 10;
+}
+
+#vista-maestro #tp-toolbar button {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #333;
+  font-size: 13px;
+  cursor: pointer;
+  background: #2d2d2d;
+  color: #eee;
+  flex: none;
+  transition: background .15s ease;
+}
+#vista-maestro #tp-toolbar button:hover:not(:disabled) { background: #3a3a3a; }
+#vista-maestro #tp-toolbar button.primary {
+  background: #e63946; color: #fff; font-weight: bold; border-color: #e63946;
+}
+#vista-maestro #tp-toolbar button.primary:hover:not(:disabled) { background: #c92f3c; }
+#vista-maestro #tp-toolbar button:disabled { opacity: .4; cursor: not-allowed; }
+
+#vista-maestro #tp-toolbar button.btn-iniciar {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #fff;
+  font-weight: bold;
+  font-size: 15px;
+  padding: 10px 18px;
+}
+#vista-maestro #tp-toolbar button.btn-iniciar:hover:not(:disabled) { background: #15803d; }
+
+#vista-maestro #tp-toolbar button.btn-iniciar.iniciada {
+  background: #4b5563;
+  border-color: #4b5563;
+  cursor: default;
+}
+
+#vista-maestro #tp-toolbar label {
+  color: #aaa;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#vista-maestro #tp-status {
+  font-size: 12px;
+  color: #aaa;
+  margin-left: auto;
+  max-width: 38%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#vista-maestro #tp-status.on { color: #4ade80; }
+#vista-maestro #tp-status.err { color: #f87171; }
+
+#vista-maestro .tp-sep { width: 1px; height: 24px; background: #333; margin: 0 4px; }
+
+/* --- Área de lectura con scroll --- */
+#vista-maestro #tp-reader {
+  flex: 1;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  background: #111;
+  padding: 40vh 8% 60vh;
+  scroll-behavior: smooth;
+}
+
+#vista-maestro #tp-reader::-webkit-scrollbar { width: 14px; }
+#vista-maestro #tp-reader::-webkit-scrollbar-track { background: #1a1a1a; }
+#vista-maestro #tp-reader::-webkit-scrollbar-thumb {
+  background: #444; border-radius: 8px; border: 3px solid #1a1a1a;
+}
+#vista-maestro #tp-reader::-webkit-scrollbar-thumb:hover { background: #666; }
+#vista-maestro #tp-reader { scrollbar-width: auto; scrollbar-color: #444 #1a1a1a; }
+
+#vista-maestro #tp-script {
+  font-size: 40px;
+  line-height: 1.65;
+  text-align: center;
+  white-space: pre-wrap;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+#vista-maestro #tp-script .tp-leido { color: #555; }
+#vista-maestro #tp-script .tp-actual {
+  color: #ffd166;
+  background: rgba(255,209,102,.18);
+  border-radius: 4px;
+  padding: 0 2px;
+  box-shadow: 0 0 0 2px rgba(255,209,102,.15);
+}
+#vista-maestro #tp-script .tp-pendiente { color: #fff; }
+
+#vista-maestro #tp-script .tp-noleer {
+  color: #6b7280;
+  font-style: italic;
+  font-size: 0.75em;
+  display: block;
+  margin: 0.6em 0;
+}
+
+#vista-maestro #tp-script span[data-i] {
+  cursor: pointer;
+  transition: background .1s ease;
+}
+#vista-maestro #tp-script span[data-i]:active {
+  background: rgba(255,255,255,.15);
+  border-radius: 4px;
+}
+
+#vista-maestro #tp-script .tp-linebreak { display: block; height: 0.55em; }
+
+/* --- Ajustes táctiles --- */
+@media (pointer: coarse) {
+  #vista-maestro #tp-toolbar button {
+    padding: 10px 14px; font-size: 15px; min-height: 44px;
+  }
+  #vista-maestro #tp-toolbar input[type=range] { height: 32px; }
+  #vista-maestro #tp-toolbar label { font-size: 14px; }
+  #vista-maestro #tp-status { font-size: 13px; }
+}
+
+/* --- Estado vacío --- */
+#vista-maestro #tp-vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #888;
+  font-size: 18px;
+  padding: 40px;
+  text-align: center;
+}
+#vista-maestro #tp-vacio .icono { font-size: 48px; margin-bottom: 20px; }

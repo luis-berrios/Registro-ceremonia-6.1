@@ -1,0 +1,2258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registro de Asistencia a Ceremonia de Titulación</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Mammoth.js: extrae texto de archivos .docx -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+
+<!-- Estilos del teleprompter (encapsulados en #vista-maestro) -->
+<link rel="stylesheet" href="teleprompter.css">
+  <style>
+    :root {
+      --color-fondo: #f5f7fa;
+      --color-encabezado: #ffffff;
+      --color-primario: #2c3e50;
+      --color-secundario: #3498db;
+      --color-reset: #e74c3c;
+      --color-destacado: #3498db;
+      --color-atrasado-alerta: #ffcccc;
+      --color-rol-registro: #3498db;
+      --color-rol-jefe: #9b59b6;
+      --color-rol-coordinador: #e74c3c;
+      --color-rol-secretario: #2ecc71;
+      --sombra-suave: 0 2px 10px rgba(0,0,0,0.1);
+      --sombra-media: 0 4px 20px rgba(0,0,0,0.15);
+      --transicion-rapida: all 0.3s ease;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--color-fondo);
+      color: #333;
+      line-height: 1.6;
+    }
+
+    /* Modal de selección de rol */
+    #modal-rol {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.7);
+      z-index: 3000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-rol-contenido {
+      background-color: white;
+      padding: 30px;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 500px;
+      box-shadow: var(--sombra-media);
+      text-align: center;
+    }
+
+    .modal-rol-contenido h2 {
+      margin-bottom: 20px;
+      color: var(--color-primario);
+    }
+
+    .opciones-rol {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .opcion-rol {
+      padding: 15px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: var(--transicion-rapida);
+      text-align: center;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .opcion-rol:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+
+    .opcion-rol.registro {
+      border-color: var(--color-rol-registro);
+      color: var(--color-rol-registro);
+    }
+
+    .opcion-rol.registro:hover, .opcion-rol.registro.seleccionado {
+      background-color: var(--color-rol-registro);
+      color: white;
+    }
+
+    .opcion-rol.jefe {
+      border-color: var(--color-rol-jefe);
+      color: var(--color-rol-jefe);
+    }
+
+    .opcion-rol.jefe:hover, .opcion-rol.jefe.seleccionado {
+      background-color: var(--color-rol-jefe);
+      color: white;
+    }
+
+    .opcion-rol.coordinador {
+      border-color: var(--color-rol-coordinador);
+      color: var(--color-rol-coordinador);
+    }
+
+    .opcion-rol.coordinador:hover, .opcion-rol.coordinador.seleccionado {
+      background-color: var(--color-rol-coordinador);
+      color: white;
+    }
+
+    .opcion-rol.secretario {
+      border-color: var(--color-rol-secretario);
+      color: var(--color-rol-secretario);
+    }
+
+    .opcion-rol.secretario:hover, .opcion-rol.secretario.seleccionado {
+      background-color: var(--color-rol-secretario);
+      color: white;
+    }
+
+    .opcion-rol.maestro {
+      border-color: #f39c12;
+      color: #f39c12;
+    }
+
+    .opcion-rol.maestro:hover, .opcion-rol.maestro.seleccionado {
+      background-color: #f39c12;
+      color: white;
+    }
+
+    .indicador-rol {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background-color: #f0f0f0;
+      padding: 8px 15px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      z-index: 1001;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .indicador-rol.registro {
+      background-color: var(--color-rol-registro);
+      color: white;
+    }
+
+    .indicador-rol.jefe {
+      background-color: var(--color-rol-jefe);
+      color: white;
+    }
+
+    .indicador-rol.coordinador {
+      background-color: var(--color-rol-coordinador);
+      color: white;
+    }
+
+    .indicador-rol.secretario {
+      background-color: var(--color-rol-secretario);
+      color: white;
+    }
+
+    .indicador-rol.maestro {
+      background-color: #f39c12;
+      color: white;
+    }
+
+    /* Estilos para el chat */
+    .chat-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 350px;
+      height: 450px;
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: var(--sombra-media);
+      display: flex;
+      flex-direction: column;
+      z-index: 1000;
+      transition: var(--transicion-rapida);
+    }
+
+    .chat-container.minimized {
+      height: 50px;
+    }
+
+    .chat-header {
+      background-color: var(--color-primario);
+      color: white;
+      padding: 12px 15px;
+      border-top-left-radius: 10px;
+      border-top-right-radius: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .chat-header.notification {
+      background-color: #e74c3c;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { background-color: #e74c3c; }
+      50% { background-color: #ff6b6b; }
+      100% { background-color: #e74c3c; }
+    }
+
+    .chat-notification-badge {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background-color: #e74c3c;
+      color: white;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      font-size: 0.7rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+
+    .chat-title {
+      font-weight: 600;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chat-controls {
+      display: flex;
+      gap: 10px;
+    }
+
+    .chat-btn {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 1rem;
+      cursor: pointer;
+      padding: 0;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: var(--transicion-rapida);
+    }
+
+    .chat-btn:hover {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .message {
+      max-width: 80%;
+      padding: 8px 12px;
+      border-radius: 15px;
+      margin-bottom: 5px;
+      word-wrap: break-word;
+    }
+
+    .message.own {
+      align-self: flex-end;
+      background-color: var(--color-destacado);
+      color: white;
+    }
+
+    .message.other {
+      align-self: flex-start;
+      background-color: #f0f0f0;
+      color: #333;
+    }
+
+    .message-sender {
+      font-size: 0.7rem;
+      margin-bottom: 3px;
+      font-weight: 600;
+    }
+
+    .message-time {
+      font-size: 0.6rem;
+      text-align: right;
+      margin-top: 3px;
+      opacity: 0.8;
+    }
+
+    .chat-input-container {
+      padding: 10px 15px;
+      border-top: 1px solid #eee;
+      display: flex;
+      gap: 10px;
+    }
+
+    .chat-input {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 20px;
+      outline: none;
+      transition: var(--transicion-rapida);
+    }
+
+    .chat-input:focus {
+      border-color: var(--color-destacado);
+    }
+
+    .chat-send-btn {
+      background-color: var(--color-destacado);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      width: 40px;
+      height: 32px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      font-size: 0.9rem;
+      margin-left: 5px;
+      transition: var(--transicion-rapida);
+    }
+
+    .chat-send-btn:hover {
+      background-color: #2980b9;
+    }
+
+    .chat-send-btn:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    .header-principal {
+      position: sticky;
+      top: 0;
+      left: 0;
+      width: 100%;
+      background: var(--color-encabezado);
+      box-shadow: var(--sombra-suave);
+      z-index: 1000;
+      padding: 10px 0;
+      transition: background-color 0.5s ease;
+    }
+
+    .header-alerta {
+      background-color: var(--color-atrasado-alerta) !important;
+    }
+
+    .contenedor {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    .titulo-contenedor {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+
+    h2 {
+      color: var(--color-primario);
+      font-size: 1.5rem;
+    }
+
+    .contador-y-botones {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .contador {
+      display: flex;
+      gap: 15px;
+      background: #f0f0f0;
+      padding: 8px 15px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+    }
+
+    .contador-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .contador-valor {
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+
+    .btn-protagonismo {
+      background-color: var(--color-destacado);
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: var(--transicion-rapida);
+    }
+
+    .btn-protagonismo:hover {
+      background-color: #2980b9;
+    }
+
+    .btn-protagonismo.desactivado {
+      opacity: 0.5;
+      pointer-events: none;
+      cursor: not-allowed;
+    }
+
+    .controles {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+
+    .grupo-control {
+      display: flex;
+      flex-direction: column;
+    }
+
+    label {
+      font-weight: 600;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    input {
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      width: 100%;
+      transition: var(--transicion-rapida);
+    }
+
+    input:focus {
+      border-color: var(--color-destacado);
+      outline: none;
+    }
+
+    .nombre-archivo {
+      margin-top: 5px;
+      font-size: 0.8rem;
+      color: #666;
+      font-style: italic;
+    }
+
+    .contenedor-tabla {
+      position: relative;
+      overflow: auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: var(--sombra-suave);
+      margin-top: 10px;
+      max-height: calc(100vh - 220px);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 600px;
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      background: var(--color-primario);
+      color: white;
+      padding: 12px;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: center;
+      font-size: 0.85rem;
+    }
+
+    /* Ajustes de ancho específicos */
+    th:nth-child(1), td:nth-child(1) { width: 5%; }
+    th:nth-child(2), td:nth-child(2) { width: 12%; }
+    th:nth-child(3), td:nth-child(3) { 
+      width: 25%; 
+      text-align: left;
+    }
+    th:nth-child(4), td:nth-child(4) { width: 20%; }
+    th:nth-child(5), td:nth-child(5) { width: 8%; }
+    th:nth-child(6), td:nth-child(6) { width: 8%; }
+    th:nth-child(7), td:nth-child(7) { width: 10%; }
+    th:nth-child(8), td:nth-child(8) { 
+      width: 12%; 
+      min-width: 120px;
+    }
+
+    .puntual { background-color: #e8f5e9; }
+    .atrasado { background-color: #fff8e1; }
+    .deshabilitado { opacity: 0.6; pointer-events: none; }
+    .chk-deshabilitado {
+      background-color: #e0e0e0;
+      border-color: #b0b0b0;
+    }
+
+    select.obs-select {
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      width: 100%;
+      background-color: white;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    select.obs-select option {
+      padding: 8px;
+      font-size: 0.9rem;
+    }
+
+    .botones-accion {
+      display: flex;
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    button {
+      background-color: var(--color-secundario);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: var(--transicion-rapida);
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    button.reset {
+      background-color: var(--color-reset);
+    }
+
+    @media screen and (max-width: 768px) {
+      .header-principal {
+        padding: 8px 0;
+      }
+      
+      .titulo-contenedor {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      
+      .contador-y-botones {
+        width: 100%;
+        justify-content: space-between;
+      }
+      
+      .contador {
+        width: auto;
+      }
+      
+      h2, .grupo-control:not(.busqueda-movil) {
+        display: none;
+      }
+      
+      .controles {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+      
+      .grupo-control.busqueda-movil {
+        display: flex !important;
+      }
+      
+      label {
+        font-size: 0.8rem;
+      }
+      
+      input {
+        padding: 8px;
+      }
+      
+      .contenedor-tabla {
+        max-height: calc(100vh - 120px);
+      }
+      
+      th, td {
+        padding: 8px 5px;
+        font-size: 0.75rem;
+      }
+      
+      th:nth-child(4), td:nth-child(4),
+      th:nth-child(5), td:nth-child(5),
+      th:nth-child(8), td:nth-child(8) {
+        display: none;
+      }
+      
+      th:nth-child(1), td:nth-child(1) { width: 10%; }
+      th:nth-child(2), td:nth-child(2) { width: 25%; }
+      th:nth-child(3), td:nth-child(3) { width: 35%; }
+      th:nth-child(6), td:nth-child(6) { width: 15%; }
+      th:nth-child(7), td:nth-child(7) { width: 15%; }
+      
+      .botones-accion {
+        flex-direction: column;
+        gap: 10px;
+      }
+      
+      /* Ajustes para móviles del botón flotante */
+      .boton-flotante {
+        bottom: 70px;
+        left: 15px;
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+      }
+      
+      .btn-protagonismo {
+        padding: 6px 12px;
+        font-size: 0.8rem;
+      }
+      
+      .indicador-rol {
+        top: 5px;
+        right: 5px;
+        font-size: 0.8rem;
+        padding: 5px 10px;
+      }
+      
+      /* Ajustes para el chat en móviles */
+      .chat-container {
+        width: 300px;
+        height: 400px;
+        right: 10px;
+        bottom: 10px;
+      }
+    }
+
+    /* Nuevos estilos para el estado de conexión */
+    .conexion-estado {
+      position: fixed;
+      top: 50px;
+      left: 10px;
+      padding: 6px 10px;
+      border-radius: 15px;
+      font-size: 0.7rem;
+      background-color: #e0e0e0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .conectado {
+      background-color: #4caf50;
+      color: white;
+    }
+
+    .desconectado {
+      background-color: #f44336;
+      color: white;
+    }
+      
+    /* Estilos para el botón flotante */
+    .boton-flotante {
+      position: fixed;
+      bottom: 80px;
+      left: 20px;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background-color: var(--color-secundario);
+      color: white;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      box-shadow: var(--sombra-media);
+      z-index: 1000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: var(--transicion-rapida);
+    }
+
+    .boton-flotante:hover {
+      background-color: #2980b9;
+      transform: scale(1.05);
+    }
+
+    /* Estilos para el modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      z-index: 2000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-contenido {
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 700px;
+      box-shadow: var(--sombra-media);
+      max-height: 80vh;
+      overflow: auto;
+    }
+
+    .modal-contenido h3 {
+      margin-bottom: 15px;
+      color: white;
+      text-align: center;
+      background-color: var(--color-destacado);
+      padding: 12px;
+      border-radius: 6px;
+      margin: -20px -20px 20px -20px;
+    }
+
+    .modal-contenido p {
+      margin-bottom: 10px;
+    }
+
+    .modal-contenido input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+
+    .modal-botones {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .modal-botones button {
+      flex: none;
+      padding: 8px 16px;
+    }
+
+    #btn-cancelar-restablecer {
+      background-color: #95a5a6;
+    }
+
+    #btn-confirmar-restablecer {
+      background-color: var(--color-secundario);
+    }
+
+    /* Estilos para la tabla de protagonismo */
+    .tabla-protagonismo {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      table-layout: fixed;
+    }
+
+    .tabla-protagonismo th {
+      background-color: var(--color-destacado);
+      color: white;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .tabla-protagonismo td {
+      padding: 8px;
+      border: 1px solid #ddd;
+      word-wrap: break-word;
+    }
+
+    .tabla-protagonismo tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+
+    /* Ajustes de ancho para las columnas específicas */
+    .tabla-protagonismo th:nth-child(1),
+    .tabla-protagonismo td:nth-child(1) {
+      width: 8%;
+    }
+
+    .tabla-protagonismo th:nth-child(2),
+    .tabla-protagonismo td:nth-child(2) {
+      width: 60%;
+      text-align: left;
+    }
+
+    .tabla-protagonismo th:nth-child(3),
+    .tabla-protagonismo td:nth-child(3) {
+      width: 20%;
+      text-align: center;
+    }
+
+    .tabla-protagonismo th:nth-child(4),
+    .tabla-protagonismo td:nth-child(4) {
+      width: 15%;
+      text-align: center;
+    }
+
+    .ausente {
+      color: #e74c3c;
+      font-weight: bold;
+    }
+
+    .puntual-tabla {
+      color: #27ae60;
+      font-weight: bold;
+    }
+
+    .atrasado-tabla {
+      color: #f39c12;
+      font-weight: bold;
+    }
+
+    /* Estilos para filas con protagonismo */
+    .fila-protagonismo {
+      font-weight: bold;
+    }
+
+    /* Estilo para el encabezado OBS editable */
+    .obs-header-editable {
+      cursor: pointer;
+    }
+
+    .obs-header-editable:hover {
+      text-decoration: underline;
+    }
+
+    /* Estilos para elementos ocultos según rol */
+    .columna-oculta {
+      display: none !important;
+    }
+
+    /* Animaciones */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .fade-in {
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    /* Scroll personalizado */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #a8a8a8;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Modal de selección de rol -->
+<div id="modal-rol">
+  <div class="modal-rol-contenido">
+    <h2>¿Cuál es tu rol?</h2>
+    <p>Selecciona tu rol para personalizar tu experiencia:</p>
+    <div class="opciones-rol">
+      <div class="opcion-rol registro" data-rol="registro">
+        <i class="fas fa-user-check"></i>
+        <span>Registro de Asistencia</span>
+      </div>
+      <div class="opcion-rol jefe" data-rol="jefe">
+        <i class="fas fa-user-tie"></i>
+        <span>Jefe de Escuela</span>
+      </div>
+      <div class="opcion-rol coordinador" data-rol="coordinador">
+        <i class="fas fa-microphone"></i>
+        <span>Coordinador Auditorio</span>
+      </div>
+      <div class="opcion-rol secretario" data-rol="secretario">
+        <i class="fas fa-clipboard-list"></i>
+        <span>Secretario</span>
+      </div>
+	
+      <div class="opcion-rol maestro" data-rol="maestro">
+        <i class="fas fa-microphone-lines"></i>
+        <span>Maestro de Ceremonia</span>
+      </div>
+
+    </div>
+    <button id="btn-confirmar-rol" disabled>Confirmar</button>
+  </div>
+</div>
+
+<!-- Indicador de rol -->
+<div id="indicador-rol" class="indicador-rol" style="display: none;"></div>
+
+<!-- Contenedor del chat -->
+<div id="chat-container" class="chat-container minimized">
+  <div class="chat-header" id="chat-header">
+    <div class="chat-title">
+      <i class="fas fa-comments"></i>
+      <span>Chat de Ceremonia</span>
+    </div>
+    <div class="chat-controls">
+      <button class="chat-btn" id="chat-clear" title="Limpiar chat">
+        <i class="fas fa-trash"></i>
+      </button>
+      <button class="chat-btn" id="chat-minimize">
+        <i class="fas fa-minus"></i>
+      </button>
+      <button class="chat-btn" id="chat-close">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+  </div>
+  <div class="chat-messages" id="chat-messages"></div>
+  <div class="chat-input-container">
+    <input type="text" class="chat-input" id="chat-input" placeholder="Escribe un mensaje..." disabled>
+    <button class="chat-send-btn" id="chat-send-btn" disabled>
+      <i class="fas fa-paper-plane"></i>
+    </button>
+  </div>
+</div>
+
+<header class="header-principal" id="header-principal">
+  <div class="contenedor">
+    <div class="titulo-contenedor">
+      <h2>Registro Ceremonias de Titulación AIEP 2025-1</h2>
+      <div class="contador-y-botones">
+        <div class="contador">
+          <div class="contador-item">
+            <div class="contador-valor" id="contador-presentes">0</div>
+            <div>Presentes</div>
+          </div>
+          <div class="contador-item">
+            <div class="contador-valor" id="contador-puntual">0</div>
+            <div>Puntual</div>
+          </div>
+          <div class="contador-item">
+            <div class="contador-valor" id="contador-atrasado">0</div>
+            <div>Atrasado</div>
+          </div>
+        </div>
+        <button class="btn-protagonismo" id="btn-detalle-protagonismo">
+          <i class="fas fa-star"></i>
+          <span>Detalle Protagonismo</span>
+        </button>
+      </div>
+    </div>
+    
+    <div class="controles">
+      <div class="grupo-control">
+        <label for="input-excel">
+          <i class="fas fa-file-excel"></i>
+          Subir archivo Excel:
+        </label>
+        <input type="file" id="input-excel" accept=".xlsx, .xls">
+        <div class="nombre-archivo" id="nombre-archivo"></div>
+      </div>
+      <div class="grupo-control">
+        <label for="hora-evento">
+          <i class="fas fa-clock"></i>
+          Hora de inicio:
+        </label>
+        <input type="time" id="hora-evento" value="18:00">
+      </div>
+      <div class="grupo-control busqueda-movil">
+        <label for="buscador">
+          <i class="fas fa-search"></i>
+          Buscar (RUT o Nombre):
+        </label>
+        <input type="text" id="buscador" placeholder="Escribe aquí...">
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="contenedor">
+  <div class="contenedor-tabla">
+    <table id="tabla-asistencia">
+      <thead>
+        <tr>
+          <th>N°</th>
+          <th>RUT</th>
+          <th>Nombre</th>
+          <th>Carrera</th>
+          <th>Ceremonia</th>
+          <th>Asistencia</th>
+          <th>Hora Llegada</th>
+          <th class="obs-header-editable" id="obs-header">OBS</th>
+        </tr>
+      </thead>
+      <tbody id="tabla-body"></tbody>
+    </table>
+  </div>
+
+  <div class="botones-accion">
+    <button onclick="exportarExcel()">
+      <i class="fas fa-file-export"></i>
+      Exportar a Excel
+    </button>
+    <button class="reset" onclick="resetearAsistencia()">
+      <i class="fas fa-undo"></i>
+      Restablecer Asistencia
+    </button>
+  </div>
+</main>
+
+<div id="estado-conexion" class="conexion-estado">
+  <i class="fas fa-wifi"></i>
+  <span>Conectando...</span>
+</div>
+
+<!-- Botón flotante para restablecer línea específica -->
+<button id="btn-restablecer-linea" class="boton-flotante" title="Restablecer línea específica">
+  <i class="fas fa-sync-alt"></i>
+</button>
+
+<!-- Modal para ingresar el RUT -->
+<div id="modal-restablecer" class="modal">
+  <div class="modal-contenido">
+    <h3>Restablecer línea de estudiante</h3>
+    <p>Ingrese el RUT del estudiante que desea restablecer:</p>
+    <input type="text" id="input-rut-restablecer" placeholder="Ej: 12345678-9">
+    <div class="modal-botones">
+      <button id="btn-cancelar-restablecer">Cancelar</button>
+      <button id="btn-confirmar-restablecer">Restablecer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para detalle de protagonismo -->
+<div id="modal-protagonismo" class="modal">
+  <div class="modal-contenido">
+    <h3>Detalle de Protagonismo</h3>
+    <div id="contenido-protagonismo">
+      <table class="tabla-protagonismo">
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>Nombre</th>
+            <th>Protagonismo</th>
+            <th>Asistencia</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-protagonismo-body">
+          <!-- Aquí se cargarán los datos dinámicamente -->
+        </tbody>
+      </table>
+    </div>
+    <div class="modal-botones">
+      <button id="btn-cerrar-protagonismo">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para editar OBS manualmente -->
+<div id="modal-editar-obs" class="modal">
+  <div class="modal-contenido">
+    <h3>Editar Protagonismo</h3>
+    <p>Ingrese el RUT del estudiante:</p>
+    <input type="text" id="input-rut-editar-obs" placeholder="Ej: 12345678-9">
+    <p>Seleccione el tipo de protagonismo:</p>
+    <select id="select-tipo-obs">
+      <option value="">-- Sin protagonismo --</option>
+      <option value="Mérito">Mérito</option>
+      <option value="Discurso">Discurso</option>
+      <option value="Discurso y Mérito">Discurso y Mérito</option>
+    </select>
+    <div class="modal-botones">
+      <button id="btn-cancelar-editar-obs">Cancelar</button>
+      <button id="btn-confirmar-editar-obs">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Configuración de Firebase - REEMPLAZA ESTOS DATOS CON LOS TUYOS
+const firebaseConfig = {
+  apiKey: "TU_API_KEY",
+  authDomain: "TU_PROYECTO.firebaseapp.com",
+  databaseURL: "https://TU_PROYECTO-default-rtdb.firebaseio.com",
+  projectId: "TU_PROYECTO",
+  storageBucket: "TU_PROYECTO.appspot.com",
+  messagingSenderId: "TU_MESSAGING_SENDER_ID",
+  appId: "TU_APP_ID"
+};
+
+// Inicializar Firebase
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+
+// Variables globales
+let datos = [];
+let datosFiltrados = [];
+const tablaBody = document.getElementById("tabla-body");
+const timers = {};
+let archivoCargado = null;
+let contadorAtrasadosAnterior = 0;
+const headerPrincipal = document.getElementById('header-principal');
+let rolUsuario = null;
+let nombreUsuario = "";
+
+// Ruta del chat según el rol (Maestro usa chat exclusivo con Secretario)
+let rutaChat = 'chat';
+
+// Elementos del DOM
+const elementos = {
+  modalRol: document.getElementById('modal-rol'),
+  opcionesRol: document.querySelectorAll('.opcion-rol'),
+  btnConfirmarRol: document.getElementById('btn-confirmar-rol'),
+  indicadorRol: document.getElementById('indicador-rol'),
+  chatContainer: document.getElementById('chat-container'),
+  chatHeader: document.getElementById('chat-header'),
+  chatMessages: document.getElementById('chat-messages'),
+  chatInput: document.getElementById('chat-input'),
+  chatSendBtn: document.getElementById('chat-send-btn'),
+  chatMinimizeBtn: document.getElementById('chat-minimize'),
+  chatCloseBtn: document.getElementById('chat-close'),
+  chatClearBtn: document.getElementById('chat-clear'),
+  contadorPresentes: document.getElementById('contador-presentes'),
+  contadorPuntual: document.getElementById('contador-puntual'),
+  contadorAtrasado: document.getElementById('contador-atrasado'),
+  nombreArchivoElement: document.getElementById('nombre-archivo'),
+  inputExcel: document.getElementById('input-excel'),
+  horaEventoInput: document.getElementById('hora-evento'),
+  buscadorInput: document.getElementById('buscador'),
+  estadoConexion: document.getElementById('estado-conexion'),
+  btnRestablecerLinea: document.getElementById('btn-restablecer-linea'),
+  modalRestablecer: document.getElementById('modal-restablecer'),
+  inputRutRestablecer: document.getElementById('input-rut-restablecer'),
+  btnCancelarRestablecer: document.getElementById('btn-cancelar-restablecer'),
+  btnConfirmarRestablecer: document.getElementById('btn-confirmar-restablecer'),
+  btnDetalleProtagonismo: document.getElementById('btn-detalle-protagonismo'),
+  modalProtagonismo: document.getElementById('modal-protagonismo'),
+  tablaProtagonismoBody: document.getElementById('tabla-protagonismo-body'),
+  btnCerrarProtagonismo: document.getElementById('btn-cerrar-protagonismo'),
+  obsHeader: document.getElementById('obs-header'),
+  modalEditarObs: document.getElementById('modal-editar-obs'),
+  inputRutEditarObs: document.getElementById('input-rut-editar-obs'),
+  selectTipoObs: document.getElementById('select-tipo-obs'),
+  btnCancelarEditarObs: document.getElementById('btn-cancelar-editar-obs'),
+  btnConfirmarEditarObs: document.getElementById('btn-confirmar-editar-obs')
+};
+
+// Variables para control de notificaciones de chat
+let ultimoMensajeTimestamp = 0;
+let notificacionActiva = false;
+let contadorMensajesNoVistos = 0;
+
+// Inicialización de la aplicación
+document.addEventListener('DOMContentLoaded', function() {
+  inicializarApp();
+});
+
+function inicializarApp() {
+  // Verificar si hay un rol guardado
+  const tieneRolGuardado = verificarRolGuardado();
+  
+  // Si no hay rol guardado, mostrar el modal
+  if (!tieneRolGuardado) {
+    elementos.modalRol.style.display = 'flex';
+  }
+  
+  // Configurar posición del thead en móviles
+  if (window.innerWidth <= 768) {
+    document.querySelector('thead th').style.top = '60px';
+  }
+  
+  // Configurar event listeners
+  configurarEventListeners();
+  
+  // Monitorear estado de conexión
+  monitorearConexion();
+}
+
+function configurarEventListeners() {
+  // Event listeners para selección de rol
+  elementos.opcionesRol.forEach(opcion => {
+    opcion.addEventListener('click', function() {
+      elementos.opcionesRol.forEach(o => o.classList.remove('seleccionado'));
+      this.classList.add('seleccionado');
+      elementos.btnConfirmarRol.disabled = false;
+      elementos.btnConfirmarRol.dataset.rol = this.dataset.rol;
+    });
+  });
+
+  elementos.btnConfirmarRol.addEventListener('click', function() {
+    if (this.dataset.rol) {
+      seleccionarRol(this.dataset.rol);
+    }
+  });
+
+  // Event listeners para el chat
+  elementos.chatMinimizeBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    elementos.chatContainer.classList.toggle('minimized');
+    if (elementos.chatContainer.classList.contains('minimized')) {
+      quitarNotificacionChat();
+    } else {
+      marcarMensajesComoLeidos();
+    }
+  });
+
+  elementos.chatCloseBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    elementos.chatContainer.classList.add('minimized');
+    quitarNotificacionChat();
+  });
+
+  elementos.chatClearBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    limpiarChat();
+  });
+
+  elementos.chatHeader.addEventListener('click', function() {
+    if (elementos.chatContainer.classList.contains('minimized')) {
+      elementos.chatContainer.classList.remove('minimized');
+      elementos.chatInput.focus();
+      marcarMensajesComoLeidos();
+    }
+  });
+
+  elementos.chatInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      enviarMensaje();
+    }
+  });
+
+  elementos.chatSendBtn.addEventListener('click', enviarMensaje);
+
+  // Event listeners para el modal de restablecimiento
+  elementos.btnRestablecerLinea.addEventListener('click', function() {
+    elementos.modalRestablecer.style.display = 'flex';
+    elementos.inputRutRestablecer.focus();
+  });
+
+  elementos.btnCancelarRestablecer.addEventListener('click', function() {
+    elementos.modalRestablecer.style.display = 'none';
+    elementos.inputRutRestablecer.value = '';
+  });
+
+  elementos.modalRestablecer.addEventListener('click', function(e) {
+    if (e.target === elementos.modalRestablecer) {
+      elementos.modalRestablecer.style.display = 'none';
+      elementos.inputRutRestablecer.value = '';
+    }
+  });
+
+  elementos.btnConfirmarRestablecer.addEventListener('click', function() {
+    const rut = elementos.inputRutRestablecer.value.trim();
+    if (!rut) {
+      alert('Por favor, ingrese un RUT');
+      return;
+    }
+    restablecerLineaPorRUT(rut);
+    elementos.modalRestablecer.style.display = 'none';
+    elementos.inputRutRestablecer.value = '';
+  });
+
+  elementos.inputRutRestablecer.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      elementos.btnConfirmarRestablecer.click();
+    }
+  });
+
+  // Event listeners para el modal de protagonismo
+  elementos.btnDetalleProtagonismo.addEventListener('click', function() {
+    if (rolUsuario !== 'secretario') {
+      alert('Solo el Secretario puede ver el detalle de protagonismo.');
+      return;
+    }
+    mostrarDetalleProtagonismo();
+    elementos.modalProtagonismo.style.display = 'flex';
+  });
+
+  elementos.btnCerrarProtagonismo.addEventListener('click', function() {
+    elementos.modalProtagonismo.style.display = 'none';
+  });
+
+  elementos.modalProtagonismo.addEventListener('click', function(e) {
+    if (e.target === elementos.modalProtagonismo) {
+      elementos.modalProtagonismo.style.display = 'none';
+    }
+  });
+
+  // Event listeners para el modal de edición OBS
+  elementos.obsHeader.addEventListener('click', function() {
+    editarOBSManual();
+  });
+
+  elementos.btnCancelarEditarObs.addEventListener('click', function() {
+    elementos.modalEditarObs.style.display = 'none';
+    elementos.inputRutEditarObs.value = '';
+    elementos.selectTipoObs.selectedIndex = 0;
+  });
+
+  elementos.btnConfirmarEditarObs.addEventListener('click', function() {
+    confirmarEdicionOBS();
+  });
+
+  elementos.modalEditarObs.addEventListener('click', function(e) {
+    if (e.target === elementos.modalEditarObs) {
+      elementos.modalEditarObs.style.display = 'none';
+      elementos.inputRutEditarObs.value = '';
+      elementos.selectTipoObs.selectedIndex = 0;
+    }
+  });
+
+  elementos.inputRutEditarObs.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      elementos.btnConfirmarEditarObs.click();
+    }
+  });
+
+  // Restaurar color del header al hacer clic en cualquier parte de la página
+  document.addEventListener('click', function() {
+    restaurarColorHeader();
+  });
+
+  // Event listeners para controles de la aplicación
+  elementos.horaEventoInput.addEventListener('change', function() {
+    guardarEnFirebase();
+  });
+
+  elementos.inputExcel.addEventListener("change", function(e) {
+    if (e.target.files.length > 0) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      
+      reader.onload = function(e) {
+        archivoCargado = { nombre: file.name };
+        procesarArchivoExcel(e.target.result);
+      };
+      
+      reader.readAsArrayBuffer(file);
+    }
+  });
+
+  elementos.buscadorInput.addEventListener("input", function() {
+    const texto = this.value.toLowerCase();
+    datosFiltrados = datos.filter(d => 
+      (d.AlumnoRUT && d.AlumnoRUT.toString().toLowerCase().includes(texto)) ||
+      (d.Nombre && d.Nombre.toLowerCase().includes(texto))
+    );
+    mostrarTabla();
+  });
+
+  // Event delegation para checkboxes de asistencia
+  document.addEventListener("change", function(e) {
+    if (e.target.classList.contains("chk-asistencia")) {
+      manejarCambioAsistencia(e.target);
+    }
+  });
+
+  // Event listener para redimensionamiento de ventana
+  window.addEventListener('resize', function() {
+    if (window.innerWidth <= 768) {
+      document.querySelector('thead th').style.top = '60px';
+    } else {
+      document.querySelector('thead th').style.top = '0';
+    }
+  });
+}
+
+function monitorearConexion() {
+  firebase.database().ref('.info/connected').on('value', function(snapshot) {
+    if (snapshot.val() === true) {
+      elementos.estadoConexion.innerHTML = '<i class="fas fa-wifi"></i><span>Conectado</span>';
+      elementos.estadoConexion.className = "conexion-estado conectado";
+    } else {
+      elementos.estadoConexion.innerHTML = '<i class="fas fa-wifi"></i><span>Desconectado</span>';
+      elementos.estadoConexion.className = "conexion-estado desconectado";
+    }
+  });
+}
+
+function verificarRolGuardado() {
+  const rolGuardado = localStorage.getItem('rolUsuario');
+  const nombreGuardado = localStorage.getItem('nombreUsuario');
+  
+  if (rolGuardado && nombreGuardado) {
+    rolUsuario = rolGuardado;
+    nombreUsuario = nombreGuardado;
+    
+    // Actualizar interfaz según el rol
+    switch(rolUsuario) {
+      case 'registro':
+        elementos.indicadorRol.innerHTML = '<i class="fas fa-user-check"></i> Registro de Asistencia';
+        elementos.indicadorRol.className = 'indicador-rol registro';
+        break;
+      case 'jefe':
+        elementos.indicadorRol.innerHTML = '<i class="fas fa-user-tie"></i> Jefe de Escuela';
+        elementos.indicadorRol.className = 'indicador-rol jefe';
+        break;
+      case 'coordinador':
+        elementos.indicadorRol.innerHTML = '<i class="fas fa-microphone"></i> Coordinador Auditorio';
+        elementos.indicadorRol.className = 'indicador-rol coordinador';
+        break;
+      case 'secretario':
+        elementos.indicadorRol.innerHTML = '<i class="fas fa-clipboard-list"></i> Secretario';
+        elementos.indicadorRol.className = 'indicador-rol secretario';
+        break;
+      case 'maestro':
+        elementos.indicadorRol.innerHTML = '<i class="fas fa-microphone-lines"></i> Maestro de Ceremonia';
+        elementos.indicadorRol.className = 'indicador-rol maestro';
+        break;
+
+    }
+    
+    elementos.indicadorRol.style.display = 'flex';
+    // Asignar ruta de chat según el rol
+    rutaChat = (rolUsuario === 'maestro') ? 'chat_direccion' : 'chat';
+    
+    // Habilitar el chat
+    elementos.chatInput.disabled = false;
+    elementos.chatSendBtn.disabled = false;
+    
+    // Aplicar restricciones según el rol
+    aplicarRestriccionesRol();
+    
+    // Cargar datos
+    cargarDatosDesdeFirebase();
+    cargarMensajesChat();
+    
+    // Ocultar el modal de selección de rol
+    elementos.modalRol.style.display = 'none';
+    
+    return true;
+  }
+  
+  return false;
+}
+
+function seleccionarRol(rol) {
+  rolUsuario = rol;
+  
+  // Asignar nombre de usuario según el rol
+  switch(rol) {
+    case 'registro':
+      nombreUsuario = "Registro Asistencia";
+      elementos.indicadorRol.innerHTML = '<i class="fas fa-user-check"></i> Registro de Asistencia';
+      elementos.indicadorRol.className = 'indicador-rol registro';
+      break;
+    case 'jefe':
+      nombreUsuario = "Jefe de Escuela";
+      elementos.indicadorRol.innerHTML = '<i class="fas fa-user-tie"></i> Jefe de Escuela';
+      elementos.indicadorRol.className = 'indicador-rol jefe';
+      break;
+    case 'coordinador':
+      nombreUsuario = "Coordinador Auditorio";
+      elementos.indicadorRol.innerHTML = '<i class="fas fa-microphone"></i> Coordinador Auditorio';
+      elementos.indicadorRol.className = 'indicador-rol coordinador';
+      break;
+    case 'secretario':
+      nombreUsuario = "Secretario";
+      elementos.indicadorRol.innerHTML = '<i class="fas fa-clipboard-list"></i> Secretario';
+      elementos.indicadorRol.className = 'indicador-rol secretario';
+      break;
+    case 'maestro':
+      nombreUsuario = "Maestro de Ceremonia";
+      elementos.indicadorRol.innerHTML = '<i class="fas fa-microphone-lines"></i> Maestro de Ceremonia';
+      elementos.indicadorRol.className = 'indicador-rol maestro';
+      break;
+  }
+  
+  elementos.indicadorRol.style.display = 'flex';
+  elementos.modalRol.style.display = 'none';
+  
+  // Asignar ruta de chat según el rol
+  rutaChat = (rol === 'maestro') ? 'chat_direccion' : 'chat';
+
+  // Habilitar el chat
+  elementos.chatInput.disabled = false;
+  elementos.chatSendBtn.disabled = false;
+  
+  // Guardar en localStorage para persistencia entre sesiones
+  localStorage.setItem('rolUsuario', rol);
+  localStorage.setItem('nombreUsuario', nombreUsuario);
+  
+  // Aplicar restricciones según el rol
+  aplicarRestriccionesRol();
+  
+  // Cargar datos después de seleccionar el rol
+  cargarDatosDesdeFirebase();
+  cargarMensajesChat();
+}
+
+function aplicarRestriccionesRol() {
+  // Obtener elementos de la tabla
+  const thElements = document.querySelectorAll('thead th');
+  const btnDetalle = document.getElementById('btn-detalle-protagonismo');
+  
+  // Resetear todas las restricciones primero
+  thElements.forEach(th => th.classList.remove('columna-oculta'));
+  btnDetalle.classList.remove('desactivado');
+
+  // ========== ROL MAESTRO DE CEREMONIA ==========
+  // Ocultar toda la vista de asistencia y mostrar el teleprompter
+  if (rolUsuario === 'maestro') {
+    // Ocultar elementos de la vista de asistencia
+    const headerPrincipal = document.querySelector('header.header-principal');
+    const mainContenedor = document.querySelector('main.contenedor');
+    const botonesAccion = document.querySelector('.botones-accion');
+    const btnRestablecer = document.getElementById('btn-restablecer-linea');
+    const estadoConexion = document.getElementById('estado-conexion');
+    const chatContainer = document.getElementById('chat-container');
+    const indicadorRol = document.getElementById('indicador-rol');
+    
+    if (headerPrincipal) headerPrincipal.style.display = 'none';
+    if (mainContenedor) mainContenedor.style.display = 'none';
+    if (botonesAccion) botonesAccion.style.display = 'none';
+    if (btnRestablecer) btnRestablecer.style.display = 'none';
+    if (estadoConexion) estadoConexion.style.display = 'none';
+    if (chatContainer) chatContainer.style.display = 'none';
+    if (indicadorRol) indicadorRol.style.display = 'none';
+    
+    // Mostrar el teleprompter
+    if (window.Teleprompter) {
+      window.Teleprompter.mostrar();
+    }
+    return;
+  }
+  
+  // ========== OTROS ROLES: restaurar vista normal ==========
+  // Restaurar elementos por si antes fue Maestro
+  const headerPrincipal = document.querySelector('header.header-principal');
+  const mainContenedor = document.querySelector('main.contenedor');
+  const botonesAccion = document.querySelector('.botones-accion');
+  const btnRestablecer = document.getElementById('btn-restablecer-linea');
+  const estadoConexion = document.getElementById('estado-conexion');
+  const chatContainer = document.getElementById('chat-container');
+  const indicadorRol = document.getElementById('indicador-rol');
+  
+  if (headerPrincipal) headerPrincipal.style.display = '';
+  if (mainContenedor) mainContenedor.style.display = '';
+  if (botonesAccion) botonesAccion.style.display = '';
+  if (btnRestablecer) btnRestablecer.style.display = '';
+  if (estadoConexion) estadoConexion.style.display = '';
+  if (chatContainer) chatContainer.style.display = '';
+  if (indicadorRol) indicadorRol.style.display = 'flex';
+  
+  // Ocultar el teleprompter si estaba visible
+  if (window.Teleprompter) {
+    window.Teleprompter.ocultar();
+  }
+  
+  // Aplicar restricciones según el rol
+  switch(rolUsuario) {
+    case 'registro':
+      // Ocultar columna OBS (índice 7) y desactivar botón
+      thElements[7].classList.add('columna-oculta');
+      btnDetalle.classList.add('desactivado');
+      break;
+      
+    case 'jefe':
+      // Ocultar columnas OBS (índice 7) y Asistencia (índice 5), desactivar botón
+      thElements[5].classList.add('columna-oculta');
+      thElements[7].classList.add('columna-oculta');
+      btnDetalle.classList.add('desactivado');
+      break;
+      
+    case 'coordinador':
+      // Ocultar columnas OBS (índice 7) y Asistencia (índice 5), desactivar botón
+      thElements[5].classList.add('columna-oculta');
+      thElements[7].classList.add('columna-oculta');
+      btnDetalle.classList.add('desactivado');
+      break;
+      
+    case 'secretario':
+      // Mostrar todo, sin restricciones
+      break;
+  }
+  
+  // Volver a mostrar la tabla para aplicar cambios
+  mostrarTabla();
+}
+
+function cargarDatosDesdeFirebase() {
+  const ref = database.ref('asistencia');
+  
+  ref.on('value', (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      datos = data.lista || [];
+      datosFiltrados = [...datos];
+      mostrarTabla();
+      actualizarContadores();
+      
+      // Actualizar hora del evento si existe
+      if (data.horaEvento) {
+        elementos.horaEventoInput.value = data.horaEvento;
+      }
+      
+      // Actualizar nombre de archivo si existe
+      if (data.nombreArchivo) {
+        elementos.nombreArchivoElement.textContent = data.nombreArchivo;
+        archivoCargado = { nombre: data.nombreArchivo };
+      }
+    }
+  });
+}
+
+function guardarEnFirebase() {
+  const datosParaGuardar = {
+    lista: datos,
+    horaEvento: elementos.horaEventoInput.value,
+    nombreArchivo: archivoCargado ? archivoCargado.nombre : null
+  };
+  
+  database.ref('asistencia').set(datosParaGuardar)
+    .catch(error => {
+      console.error("Error al guardar en Firebase:", error);
+    });
+}
+
+function procesarArchivoExcel(data) {
+  const workbook = XLSX.read(data, {type: "array"});
+  const sheetName = workbook.SheetNames[0];
+  const excelData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+  
+  datos = excelData.map((item, index) => {
+    const nombre = item["nombre completo"] || item.Nombre || item.NOMBRE || item.name || "";
+    
+    // Obtener protagonismo desde Excel (si existe)
+    const protagonismo = item.Protagonismo || item.OBS || item.Observaciones || "";
+    
+    return {
+      NUMERO: index + 1,
+      AlumnoRUT: item.AlumnoRUT || item.RUT || "",
+      Nombre: nombre,
+      Carrera: item.Carrera || "",
+      Ceremonia: item.Ceremonia || "",
+      HORA: "",
+      LLEGADA: "",
+      DESHABILITADO: false,
+      OBS: protagonismo
+    };
+  });
+  
+  guardarEnFirebase();
+  mostrarTabla();
+  actualizarContadores();
+}
+
+function actualizarContadores() {
+  const puntual = datos.filter(d => d.LLEGADA === "Puntual").length;
+  const atrasado = datos.filter(d => d.LLEGADA === "Atrasado").length;
+  const presentes = puntual + atrasado;
+  
+  // Verificar si aumentó el contador de atrasados
+  if (atrasado > contadorAtrasadosAnterior) {
+    // Cambiar el color del encabezado a rojo suave
+    headerPrincipal.classList.add('header-alerta');
+  }
+  
+  contadorAtrasadosAnterior = atrasado;
+  
+  elementos.contadorPresentes.textContent = presentes;
+  elementos.contadorPuntual.textContent = puntual;
+  elementos.contadorAtrasado.textContent = atrasado;
+}
+
+function restaurarColorHeader() {
+  headerPrincipal.classList.remove('header-alerta');
+}
+
+function mostrarTabla() {
+  elementos.tablaBody.innerHTML = "";
+  
+  if (datosFiltrados.length === 0) {
+    elementos.tablaBody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:20px;">No se encontraron resultados</td></tr>`;
+    return;
+  }
+
+  datosFiltrados.forEach((fila, index) => {
+    const tr = document.createElement("tr");
+    
+    if (fila.LLEGADA === "Puntual") tr.classList.add("puntual");
+    if (fila.LLEGADA === "Atrasado") tr.classList.add("atrasado");
+    if (fila.DESHABILITADO) tr.classList.add("deshabilitado");
+    
+    // Añadir clase para filas con protagonismo
+    if (fila.OBS && (fila.OBS === "Mérito" || fila.OBS === "Discurso" || fila.OBS === "Discurso y Mérito")) {
+      tr.classList.add("fila-protagonismo");
+    }
+    
+    // Determinar qué columnas mostrar según el rol
+    let html = `
+      <td>${fila.NUMERO}</td>
+      <td>${fila.AlumnoRUT}</td>
+      <td>${fila.Nombre}</td>
+      <td>${fila.Carrera}</td>
+      <td>${fila.Ceremonia}</td>
+    `;
+    
+    // Columna Asistencia (índice 5)
+    if (rolUsuario === 'registro' || rolUsuario === 'secretario') {
+      html += `
+        <td>
+          <input type="checkbox" class="chk-asistencia" 
+                 data-rut="${fila.AlumnoRUT}" 
+                 ${fila.LLEGADA ? "checked" : ""}
+                 ${fila.DESHABILITADO ? "disabled" : ""}
+                 ${fila.DESHABILITADO ? 'style="background-color: #e0e0e0; border-color: #b0b0b0;"' : ''}>
+        </td>
+        <td>${fila.HORA || ""}</td>
+      `;
+    } else {
+      // Para jefe y coordinador, ocultar columna de asistencia
+      html += `<td class="columna-oculta"></td><td class="columna-oculta"></td>`;
+    }
+    
+    // Columna OBS (índice 7)
+    if (rolUsuario === 'secretario') {
+      html += `<td>${fila.OBS || ""}</td>`;
+    } else {
+      html += `<td class="columna-oculta"></td>`;
+    }
+    
+    tr.innerHTML = html;
+    elementos.tablaBody.appendChild(tr);
+  });
+}
+
+function manejarCambioAsistencia(checkbox) {
+  const rut = checkbox.dataset.rut;
+  const estaMarcado = checkbox.checked;
+  
+  if (timers[rut]) {
+    clearTimeout(timers[rut]);
+    delete timers[rut];
+  }
+  
+  if (estaMarcado) {
+    registrarAsistencia(rut);
+    
+    timers[rut] = setTimeout(() => {
+      bloquearFila(rut);
+    }, 5000);
+  } else {
+    eliminarAsistencia(rut);
+  }
+  
+  // Limpiar el buscador después de marcar/desmarcar
+  elementos.buscadorInput.value = '';
+  datosFiltrados = [...datos];
+  mostrarTabla();
+  
+  // Encontrar y hacer scroll a la fila marcada
+  const filaMarcada = document.querySelector(`.chk-asistencia[data-rut="${rut}"]`).closest('tr');
+  if (filaMarcada) {
+    filaMarcada.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+function registrarAsistencia(rut) {
+  const alumno = datos.find(d => d.AlumnoRUT == rut);
+  if (!alumno) return;
+
+  const ahora = new Date();
+  const horaEvento = elementos.horaEventoInput.value.split(":");
+  const inicioEvento = new Date();
+  inicioEvento.setHours(parseInt(horaEvento[0]), parseInt(horaEvento[1]), 0, 0);
+
+  alumno.HORA = ahora.toTimeString().substring(0, 8);
+  alumno.LLEGADA = ahora <= inicioEvento ? "Puntual" : "Atrasado";
+
+  const alumnoFiltrado = datosFiltrados.find(d => d.AlumnoRUT == rut);
+  if (alumnoFiltrado) {
+    alumnoFiltrado.HORA = alumno.HORA;
+    alumnoFiltrado.LLEGADA = alumno.LLEGADA;
+  }
+
+  guardarEnFirebase();
+  mostrarTabla();
+  actualizarContadores();
+}
+
+function eliminarAsistencia(rut) {
+  const alumno = datos.find(d => d.AlumnoRUT == rut);
+  if (!alumno) return;
+
+  alumno.HORA = "";
+  alumno.LLEGADA = "";
+
+  const alumnoFiltrado = datosFiltrados.find(d => d.AlumnoRUT == rut);
+  if (alumnoFiltrado) {
+    alumnoFiltrado.HORA = "";
+    alumnoFiltrado.LLEGADA = "";
+  }
+
+  guardarEnFirebase();
+  mostrarTabla();
+  actualizarContadores();
+}
+
+function bloquearFila(rut) {
+  const alumno = datos.find(d => d.AlumnoRUT == rut);
+  if (!alumno) return;
+
+  alumno.DESHABILITADO = true;
+
+  const alumnoFiltrado = datosFiltrados.find(d => d.AlumnoRUT == rut);
+  if (alumnoFiltrado) {
+    alumnoFiltrado.DESHABILITADO = true;
+  }
+
+  guardarEnFirebase();
+  mostrarTabla();
+}
+
+function restablecerLineaPorRUT(rut) {
+  const alumno = datos.find(d => d.AlumnoRUT.toString().toLowerCase() === rut.toLowerCase());
+  
+  if (!alumno) {
+    alert('No se encontró ningún estudiante con el RUT: ' + rut);
+    return;
+  }
+  
+  // Limpiar timer si existe
+  if (timers[alumno.AlumnoRUT]) {
+    clearTimeout(timers[alumno.AlumnoRUT]);
+    delete timers[alumno.AlumnoRUT];
+  }
+  
+  // Restablecer valores
+  alumno.HORA = "";
+  alumno.LLEGADA = "";
+  alumno.DESHABILITADO = false;
+  alumno.OBS = "";
+  
+  // Actualizar también en datos filtrados si existe
+  const alumnoFiltrado = datosFiltrados.find(d => d.AlumnoRUT.toString().toLowerCase() === rut.toLowerCase());
+  if (alumnoFiltrado) {
+    alumnoFiltrado.HORA = "";
+    alumnoFiltrado.LLEGADA = "";
+    alumnoFiltrado.DESHABILITADO = false;
+    alumnoFiltrado.OBS = "";
+  }
+  
+  guardarEnFirebase();
+  mostrarTabla();
+  actualizarContadores();
+  
+  alert('Línea restablecida correctamente para: ' + alumno.Nombre);
+  
+  // Limpiar el buscador y mostrar todos los datos
+  elementos.buscadorInput.value = '';
+  datosFiltrados = [...datos];
+  mostrarTabla();
+}
+
+function resetearAsistencia() {
+  if (!confirm("¿Está seguro que desea restablecer toda la asistencia? Esta acción eliminará todas las marcaciones realizadas.")) {
+    return;
+  }
+  
+  // Pedir contraseña
+  const contraseña = prompt("Ingrese la contraseña para confirmar:");
+  if (contraseña !== "1510") {
+    alert("Contraseña incorrecta. La operación ha sido cancelada.");
+    return;
+  }
+  
+  // Limpiar todos los timers
+  for (const timer in timers) {
+    clearTimeout(timers[timer]);
+    delete timers[timer];
+  }
+  
+  // Resetear todos los datos
+  datos.forEach(alumno => {
+    alumno.HORA = "";
+    alumno.LLEGADA = "";
+    alumno.DESHABILITADO = false;
+    alumno.OBS = "";
+  });
+  
+  datosFiltrados = [...datos];
+  
+  guardarEnFirebase();
+  mostrarTabla();
+  actualizarContadores();
+  
+  // Limpiar el buscador
+  elementos.buscadorInput.value = "";
+}
+
+function exportarExcel() {
+  if (!archivoCargado) {
+    alert("Primero debe cargar un archivo Excel");
+    return;
+  }
+
+  const datosExportar = datos.map(({NUMERO, ...rest}) => rest);
+  const ws = XLSX.utils.json_to_sheet(datosExportar);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Asistencia");
+  XLSX.writeFile(wb, "asistencia_actualizada.xlsx");
+}
+
+function mostrarDetalleProtagonismo() {
+  // Filtrar estudiantes con algún tipo de protagonismo
+  const estudiantesProtagonismo = datos.filter(d => 
+    d.OBS === "Discurso" || d.OBS === "Mérito" || d.OBS === "Discurso y Mérito"
+  );
+  
+  // Ordenar por prioridad
+  estudiantesProtagonismo.sort((a, b) => {
+    // Primero por tipo de protagonismo
+    const prioridad = {
+      "Mérito": 1,
+      "Discurso": 2,
+      "Discurso y Mérito": 3
+    };
+    
+    if (prioridad[a.OBS] !== prioridad[b.OBS]) {
+      return prioridad[a.OBS] - prioridad[b.OBS];
+    }
+    
+    // Luego por número
+    return a.NUMERO - b.NUMERO;
+  });
+  
+  // Generar la tabla
+  elementos.tablaProtagonismoBody.innerHTML = "";
+  
+  if (estudiantesProtagonismo.length === 0) {
+    elementos.tablaProtagonismoBody.innerHTML = `
+      <tr>
+        <td colspan="4" style="text-align:center;padding:20px;">
+          No hay estudiantes con roles de protagonismo
+        </td>
+      </tr>
+    `;
+    return;
+  }
+  
+  estudiantesProtagonismo.forEach(estudiante => {
+    const tr = document.createElement("tr");
+    
+    // Determinar el estado de asistencia
+    let estadoAsistencia = "Ausente";
+    let claseAsistencia = "ausente";
+    
+    if (estudiante.LLEGADA === "Puntual") {
+      estadoAsistencia = "Puntual";
+      claseAsistencia = "puntual-tabla";
+    } else if (estudiante.LLEGADA === "Atrasado") {
+      estadoAsistencia = "Atrasado";
+      claseAsistencia = "atrasado-tabla";
+    }
+    
+    tr.innerHTML = `
+      <td>${estudiante.NUMERO}</td>
+      <td>${estudiante.Nombre}</td>
+      <td>${estudiante.OBS}</td>
+      <td class="${claseAsistencia}">${estudiante.LLEGADA || estadoAsistencia}</td>
+    `;
+    
+    elementos.tablaProtagonismoBody.appendChild(tr);
+  });
+}
+
+function editarOBSManual() {
+  // Solo el secretario puede editar OBS
+  if (rolUsuario !== 'secretario') {
+    alert('Solo el Secretario puede editar el protagonismo.');
+    return;
+  }
+  
+  elementos.modalEditarObs.style.display = 'flex';
+  elementos.inputRutEditarObs.focus();
+}
+
+function confirmarEdicionOBS() {
+  const rut = elementos.inputRutEditarObs.value.trim();
+  const tipoObs = elementos.selectTipoObs.value;
+  
+  if (!rut) {
+    alert('Por favor, ingrese un RUT');
+    return;
+  }
+  
+  const alumno = datos.find(d => d.AlumnoRUT.toString().toLowerCase() === rut.toLowerCase());
+  
+  if (!alumno) {
+    alert('No se encontró ningún estudiante con el RUT: ' + rut);
+    return;
+  }
+  
+  // Actualizar OBS
+  alumno.OBS = tipoObs;
+  
+  // Actualizar también en datos filtrados si existe
+  const alumnoFiltrado = datosFiltrados.find(d => d.AlumnoRUT.toString().toLowerCase() === rut.toLowerCase());
+  if (alumnoFiltrado) {
+    alumnoFiltrado.OBS = tipoObs;
+  }
+  
+  guardarEnFirebase();
+  mostrarTabla();
+  elementos.modalEditarObs.style.display = 'none';
+  elementos.inputRutEditarObs.value = '';
+  elementos.selectTipoObs.selectedIndex = 0;
+  
+  alert('Protagonismo actualizado correctamente para: ' + alumno.Nombre);
+}
+
+function enviarMensaje() {
+  const texto = elementos.chatInput.value.trim();
+  if (texto === '') return;
+  
+  const timestamp = new Date().getTime();
+  const mensaje = {
+    texto: texto,
+    usuario: nombreUsuario,
+    rol: rolUsuario,
+    timestamp: timestamp
+  };
+  
+  // Guardar mensaje en Firebase
+  database.ref('chat').push(mensaje)
+    .then(() => {
+      elementos.chatInput.value = '';
+      elementos.chatMessages.scrollTop = elementos.chatMessages.scrollHeight;
+      // Actualizar timestamp del último mensaje enviado
+      ultimoMensajeTimestamp = timestamp;
+      localStorage.setItem('ultimoMensajeTimestamp', ultimoMensajeTimestamp.toString());
+    })
+    .catch(error => {
+      console.error("Error al enviar mensaje:", error);
+    });
+}
+
+function cargarMensajesChat() {
+  const ref = database.ref('chat');
+  
+  // Cargar timestamp del último mensaje visto
+  const ultimoMensajeVisto = localStorage.getItem('ultimoMensajeTimestamp');
+  if (ultimoMensajeVisto) {
+    ultimoMensajeTimestamp = parseInt(ultimoMensajeVisto);
+  }
+  
+  ref.on('child_added', (snapshot) => {
+    const mensaje = snapshot.val();
+    
+    // Verificar si es un mensaje nuevo
+    if (mensaje.timestamp > ultimoMensajeTimestamp) {
+      if (elementos.chatContainer.classList.contains('minimized') || mensaje.usuario !== nombreUsuario) {
+        contadorMensajesNoVistos++;
+        mostrarNotificacionChat();
+      }
+      
+      // Actualizar el timestamp del último mensaje
+      if (mensaje.timestamp > ultimoMensajeTimestamp) {
+        ultimoMensajeTimestamp = mensaje.timestamp;
+      }
+    }
+    
+    mostrarMensaje(mensaje);
+  });
+}
+
+function mostrarMensaje(mensaje) {
+  const div = document.createElement('div');
+  const esPropio = mensaje.usuario === nombreUsuario;
+  
+  const fecha = new Date(mensaje.timestamp);
+  const hora = fecha.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+  
+  div.classList.add('message');
+  div.classList.add(esPropio ? 'own' : 'other');
+  
+  div.innerHTML = `
+    <div class="message-sender">${mensaje.usuario}</div>
+    <div>${mensaje.texto}</div>
+    <div class="message-time">${hora}</div>
+  `;
+  
+  elementos.chatMessages.appendChild(div);
+  elementos.chatMessages.scrollTop = elementos.chatMessages.scrollHeight;
+}
+
+function marcarMensajesComoLeidos() {
+  if (ultimoMensajeTimestamp > 0) {
+    localStorage.setItem('ultimoMensajeTimestamp', ultimoMensajeTimestamp.toString());
+  }
+  quitarNotificacionChat();
+}
+
+function quitarNotificacionChat() {
+  elementos.chatHeader.classList.remove('notification');
+  notificacionActiva = false;
+  contadorMensajesNoVistos = 0;
+  
+  // Eliminar badge de notificación si existe
+  const existingBadge = document.querySelector('.chat-notification-badge');
+  if (existingBadge) {
+    existingBadge.remove();
+  }
+}
+
+function mostrarNotificacionChat() {
+  if (elementos.chatContainer.classList.contains('minimized') || !notificacionActiva) {
+    elementos.chatHeader.classList.add('notification');
+    notificacionActiva = true;
+    
+  // Agregar o actualizar badge de notificación
+  let badge = document.querySelector('.chat-notification-badge');
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.className = 'chat-notification-badge';
+    elementos.chatHeader.appendChild(badge);
+  }
+  badge.textContent = contadorMensajesNoVistos > 99 ? '99+' : contadorMensajesNoVistos;
+  }
+}
+
+function limpiarChat() {
+  if (rolUsuario !== 'secretario') {
+    alert('Solo el Secretario puede limpiar el chat.');
+    return;
+  }
+  
+  const contraseña = prompt("Ingrese la contraseña para limpiar el chat:");
+  if (contraseña !== "1510") {
+    alert("Contraseña incorrecta. La operación ha sido cancelada.");
+    return;
+  }
+  
+  if (!confirm("¿Está seguro que desea limpiar todo el historial del chat? Esta acción no se puede deshacer.")) {
+    return;
+  }
+  
+  // Eliminar todos los mensajes de Firebase
+  database.ref('chat').remove()
+    .then(() => {
+      // Limpiar mensajes localmente
+      elementos.chatMessages.innerHTML = '';
+      // Resetear variables de notificación
+      ultimoMensajeTimestamp = 0;
+      localStorage.setItem('ultimoMensajeTimestamp', '0');
+      quitarNotificacionChat();
+      alert('Chat limpiado correctamente.');
+    })
+    .catch(error => {
+      console.error("Error al limpiar el chat:", error);
+      alert('Error al limpiar el chat.');
+    });
+}
+
+console.log('Aplicación de registro de asistencia inicializada');
+</script>
+<!-- ========== VISTA MAESTRO DE CEREMONIA ========== -->
+<div id="vista-maestro">
+  <div id="tp-toolbar">
+    <button id="tp-btn-iniciar" class="btn-iniciar">▶ Iniciar ceremonia</button>
+    <div class="tp-sep"></div>
+    <button id="tp-btn-start" class="primary">▶ Escuchar</button>
+    <button id="tp-btn-stop" disabled>⏸ Detener</button>
+    <div class="tp-sep"></div>
+    <button id="tp-btn-prev">◀ Anterior</button>
+    <button id="tp-btn-next">Siguiente ▶</button>
+    <div class="tp-sep"></div>
+    <button id="tp-btn-cargar">📂 Cargar libreto</button>
+    <input type="file" id="tp-file-input" accept=".txt,.docx" style="display:none;">
+    <button id="tp-btn-full">⛶ Pantalla completa</button>
+    <button id="tp-btn-font-down">A−</button>
+    <button id="tp-btn-font-up">A+</button>
+    <label>Vel. <input id="tp-speed" type="range" min="0.2" max="3" step="0.1" value="1" style="width:80px;vertical-align:middle;"></label>
+    <label><input id="tp-modo-estricto" type="checkbox" checked> Estricto</label>
+    <span id="tp-status">Listo</span>
+  </div>
+  <div id="tp-reader">
+    <div id="tp-script">Carga un libreto con el botón 📂 Cargar libreto</div>
+  </div>
+</div>
+
+<script src="teleprompter.js"></script>
+</body>
+</html>
