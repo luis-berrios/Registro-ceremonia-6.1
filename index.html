@@ -1574,21 +1574,21 @@ function aplicarRestriccionesRol() {
   // Ocultar toda la vista de asistencia y mostrar el teleprompter
   if (rolUsuario === 'maestro') {
     // Ocultar elementos de la vista de asistencia
-    const headerPrincipal = document.querySelector('header.header-principal');
-    const mainContenedor = document.querySelector('main.contenedor');
-    const botonesAccion = document.querySelector('.botones-accion');
-    const btnRestablecer = document.getElementById('btn-restablecer-linea');
-    const estadoConexion = document.getElementById('estado-conexion');
-    const chatContainer = document.getElementById('chat-container');
-    const indicadorRol = document.getElementById('indicador-rol');
+    const headerPrincipalEl = document.querySelector('header.header-principal');
+    const mainContenedorEl = document.querySelector('main.contenedor');
+    const botonesAccionEl = document.querySelector('.botones-accion');
+    const btnRestablecerEl = document.getElementById('btn-restablecer-linea');
+    const estadoConexionEl = document.getElementById('estado-conexion');
+    const chatContainerEl = document.getElementById('chat-container');
+    const indicadorRolEl = document.getElementById('indicador-rol');
     
-    if (headerPrincipal) headerPrincipal.style.display = 'none';
-    if (mainContenedor) mainContenedor.style.display = 'none';
-    if (botonesAccion) botonesAccion.style.display = 'none';
-    if (btnRestablecer) btnRestablecer.style.display = 'none';
-    if (estadoConexion) estadoConexion.style.display = 'none';
-    if (chatContainer) chatContainer.style.display = 'none';
-    if (indicadorRol) indicadorRol.style.display = 'none';
+    if (headerPrincipalEl) headerPrincipalEl.style.display = 'none';
+    if (mainContenedorEl) mainContenedorEl.style.display = 'none';
+    if (botonesAccionEl) botonesAccionEl.style.display = 'none';
+    if (btnRestablecerEl) btnRestablecerEl.style.display = 'none';
+    if (estadoConexionEl) estadoConexionEl.style.display = 'none';
+    if (chatContainerEl) chatContainerEl.style.display = 'none';
+    if (indicadorRolEl) indicadorRolEl.style.display = 'none';
     
     // Mostrar el teleprompter
     if (window.Teleprompter) {
