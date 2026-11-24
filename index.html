@@ -967,7 +967,8 @@
 </div>
 
 <!-- Indicador de rol -->
-<div id="indicador-rol" class="indicador-rol" style="display: none;"></div>
+<div id="indicador-rol" class="indicador-rol" style="display: none; cursor: pointer;" title="Haz clic para cambiar de rol">
+</div>
 
 <!-- Contenedor del chat -->
 <div id="chat-container" class="chat-container minimized">
@@ -2235,6 +2236,20 @@ document.addEventListener('DOMContentLoaded', function() {
         localStorage.removeItem('rolUsuario');
         localStorage.removeItem('nombreUsuario');
         // Recargar la página para que aparezca el modal de selección
+        window.location.reload();
+      }
+    });
+  }
+});
+
+// --- Botón para cambiar de rol haciendo clic en el indicador ---
+document.addEventListener('DOMContentLoaded', function() {
+  const indicadorRol = document.getElementById('indicador-rol');
+  if (indicadorRol) {
+    indicadorRol.addEventListener('click', function() {
+      if (confirm('¿Deseas cambiar de rol? Se cerrará la sesión actual.')) {
+        localStorage.removeItem('rolUsuario');
+        localStorage.removeItem('nombreUsuario');
         window.location.reload();
       }
     });
