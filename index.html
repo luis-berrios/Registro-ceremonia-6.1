@@ -2225,7 +2225,22 @@ function limpiarChat() {
       alert('Error al limpiar el chat.');
     });
 }
-
+// --- Botón Salir del modo Maestro ---
+document.addEventListener('DOMContentLoaded', function() {
+  const btnSalir = document.getElementById('tp-btn-salir');
+  if (btnSalir) {
+    btnSalir.addEventListener('click', function() {
+      if (confirm('¿Estás seguro de que deseas salir del modo Maestro de Ceremonia?')) {
+        // Borrar el rol guardado
+        localStorage.removeItem('rolUsuario');
+        localStorage.removeItem('nombreUsuario');
+        // Recargar la página para que aparezca el modal de selección
+        window.location.reload();
+      }
+    });
+  }
+});
+	
 console.log('Aplicación de registro de asistencia inicializada');
 </script>
 <!-- ========== VISTA MAESTRO DE CEREMONIA ========== -->
@@ -2247,6 +2262,9 @@ console.log('Aplicación de registro de asistencia inicializada');
     <label>Vel. <input id="tp-speed" type="range" min="0.2" max="3" step="0.1" value="1" style="width:80px;vertical-align:middle;"></label>
     <label><input id="tp-modo-estricto" type="checkbox" checked> Estricto</label>
     <span id="tp-status">Listo</span>
+	      <button id="tp-btn-salir" style="margin-left: 10px; background-color: #95a5a6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
+      <i class="fas fa-sign-out-alt"></i> Salir
+    </button>
   </div>
   <div id="tp-reader">
     <div id="tp-script">Carga un libreto con el botón 📂 Cargar libreto</div>
